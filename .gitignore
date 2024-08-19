@@ -5,3 +5,4 @@ node_modules
 .venv
 .venv/*
 *.db
+__pycache__
