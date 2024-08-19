@@ -6,22 +6,24 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import httpx
 from urllib.parse import urlencode
 from sqlalchemy.exc import NoResultFound
-
+import dotenv
 from _db import SessionLocal, User, get_db
+
+dotenv.load_dotenv()
 
 authRoute = APIRouter(prefix='/api/auth', tags=['Auth', 'Authentication'])
 
 # Configuration
-OIDC_AUTHORIZATION_ENDPOINT = 'https://auth.tzpro.xyz/oidc/auth'
-OIDC_TOKEN_ENDPOINT = 'https://auth.tzpro.xyz/oidc/token'
-OIDC_USERINFO_ENDPOINT = 'https://auth.tzpro.xyz/oidc/me'
-OIDC_SCOPES = 'openid profile email'
-REDIRECT_URI = 'http://127.0.0.1:8000/api/auth/callback'
-CLIENT_ID = 'o03cew16ohf6wns58uhq3'
-CLIENT_SECRET = 'bvZM7HhUCxDicbD50NKvp63zbz3zv9ty'  # Replace with your actual client secret
+OIDC_AUTHORIZATION_ENDPOINT = os.environ.get('OIDC_AUTHORIZATION_ENDPOINT')
+OIDC_TOKEN_ENDPOINT = os.environ.get('OIDC_TOKEN_ENDPOINT')
+OIDC_USERINFO_ENDPOINT = os.environ.get('OIDC_USERINFO_ENDPOINT')
+OIDC_SCOPES = os.environ.get('OIDC_SCOPES')
+REDIRECT_URI = os.environ.get('REDIRECT_URI')
+CLIENT_ID = os.environ.get('CLIENT_ID')
+CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
 
 # initial baseurl from .env
-redirectURL = os.getenv('redirectURL', '/test')
+redirectURL = os.getenv('REDIRECT_PATH', '/test')
 
 
 # Helper function to generate a random string (for CSRF protection)
