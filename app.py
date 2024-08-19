@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 from fastapi.responses import JSONResponse
@@ -5,7 +6,9 @@ from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
-from _redis import get_key, set_key
+
+from _db import testSQL
+from _redis import get_key, redis_client, set_key
 from _trend import trendingRoute
 from _user import userRoute
 from _auth import authRoute
@@ -23,14 +26,23 @@ from fastapi_limiter.depends import RateLimiter
 
 load_dotenv()
 
+logging.getLogger().setLevel(logging.INFO)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     await FastAPILimiter.init(redis_connection)
+    test = await redis_connection.ping()
+    if test:
+        logging.info("Redis connection established")
+    if os.getenv("MYSQL_CONN_STRING"):
+        await testSQL()
+        logging.info("MySQL connection established")
     yield
     await FastAPILimiter.close()
+    await redis_client.connection_pool.disconnect()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -101,9 +113,8 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['GET', 'POST'],
                    allow_headers=[
                        'Authorization, Content-Type, Origin, X-Requested-With, Accept, Accept-Encoding, Accept-Language, Host, Referer, User-Agent',
-                       'Set-Cookie']),
+                       'Set-Cookie']),  # 允许跨域请求
 
 if __name__ == '__main__':
     import uvicorn
-
     uvicorn.run(app, host='127.0.0.1', port=8000)

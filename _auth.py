@@ -21,6 +21,7 @@ OIDC_SCOPES = os.environ.get('OIDC_SCOPES')
 REDIRECT_URI = os.environ.get('REDIRECT_URI')
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+user_agent = "TZPro/0.0.1beta (Linux; Ubuntu 20.04)"
 
 # initial baseurl from .env
 redirectURL = os.getenv('REDIRECT_PATH', '/test')
@@ -56,7 +57,7 @@ async def exchange_code_for_tokens(code: str):
         'client_secret': CLIENT_SECRET
     }
     async with httpx.AsyncClient() as client:
-        response = await client.post(OIDC_TOKEN_ENDPOINT, data=payload)
+        response = await client.post(OIDC_TOKEN_ENDPOINT, data=payload, headers={'User-Agent': user_agent})
         if response.status_code != 200:
             raise HTTPException(status_code=response.status_code, detail=response.text)
         return response.json()
@@ -64,7 +65,7 @@ async def exchange_code_for_tokens(code: str):
 
 # Helper function to fetch user info from OIDC provider
 async def fetch_userinfo(access_token: str):
-    headers = {'Authorization': f'Bearer {access_token}'}
+    headers = {'Authorization': f'Bearer {access_token}', 'User-Agent': user_agent}
     async with httpx.AsyncClient() as client:
         response = await client.get(OIDC_USERINFO_ENDPOINT, headers=headers)
         if response.status_code != 200:

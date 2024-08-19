@@ -1,7 +1,6 @@
 import datetime
 import hashlib
-
-
+from _redis import get_key, set_key  # noqa
 from fake_useragent import UserAgent
 
 ua = UserAgent()
@@ -17,7 +16,7 @@ def C(t):
     return hashlib.md5(t.encode('utf-8')).hexdigest()
 
 
-def generate_vv_detail():
+def vv_generator():
     # 获取当前法国时间的 Unix 时间戳（秒）
     france_time = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=2)))
     timestamp = int(france_time.timestamp())
@@ -50,6 +49,20 @@ def generate_vv_detail():
     return vv
 
 
+async def generate_vv_detail():
+    vv = await get_key('vv')
+    if vv is None:
+        vv = vv_generator()
+        set = await set_key('vv', vv, 60 * 5)
+        if not set:
+            raise Exception('Failed to set vv')
+    return vv
+
+
 def _getRandomUserAgent():
     return ua.random
 
+
+if __name__ == '__main__':
+    print(vv_generator())
+    print(_getRandomUserAgent())

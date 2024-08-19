@@ -21,6 +21,15 @@ redis_client = redis.StrictRedis(
 )
 
 
+async def test_redis():
+    try:
+        await redis_client.ping()
+        return True
+    except redis.RedisError as e:
+        print(f"Error connecting to Redis: {e}")
+        return False
+
+
 # Set a key-value pair in Redis
 async def set_key(key: str, value: str, ex: Optional[int] = None) -> bool:
     """

@@ -1,17 +1,18 @@
 import hashlib
 import datetime
+import json
 import logging
 import random
 import urllib.parse
 import httpx
-import requests
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from fastapi.routing import APIRouter
 
+from _redis import get_key, set_key
 from _utils import _getRandomUserAgent, generate_vv_detail
 
-searchRouter = APIRouter(prefix='/api/query', tags=['Search', 'Search Api'])
+searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
 
 
 async def _getProxy():
@@ -36,7 +37,8 @@ async def search_api(keyword, page=1, size=4):
         'Referer': 'https://www.olevod.com/',
         'Origin': 'https://www.olevod.com/',
     }
-    response = requests.get(base_url, headers=headers)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
         return JSONResponse(content={"error": "Upstream Error"}, status_code=501)
     return response.json()
@@ -59,7 +61,8 @@ async def link_keywords(keyword):
         'accept-encoding': 'gzip, deflate, br, zstd',
         'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
     }
-    response = requests.get(base_url, headers=headers)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
         return JSONResponse(content={"error": "Upstream Error"}, status_code=501)
     return response.json()
@@ -90,12 +93,25 @@ async def keyword(request: Request):
     return JSONResponse(result)
 
 
-# 测试
-if __name__ == '__main__':
-    import asyncio
-
-    # 搜索 "复仇者联盟" 的结果
-    result = asyncio.run(search_api("复仇者联盟"))
-    print(result)
-    result = asyncio.run(link_keywords("复仇者"))
-    print(result)
+@searchRouter.api_route('/detail', methods=['POST'], name='detail')
+async def detail(request: Request):
+    data = await request.json()
+    try:
+        id = data.get('id')
+    except:
+        return JSONResponse({"error": "Invalid Request, missing param: id"}, status_code=400)
+    vv = await generate_vv_detail()
+    url = f"https://api.olelive.com/v1/pub/vod/detail/{id}/true?_vv={vv}"
+    headers = {
+        'User-Agent': _getRandomUserAgent(),
+        'Referer': 'https://www.olevod.com/',
+        'Origin': 'https://www.olevod.com/',
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+        response_data = response.json()
+        return JSONResponse(response_data, status_code=200)
+    except:
+        return JSONResponse({"error": "Upstream Error"}, status_code=501)
+    # direct play https://player.viloud.tv/embed/play?url=https://www.olevod.com/vod/detail/5f4b3b7b7f3c1d0001b2b3b3&autoplay=1

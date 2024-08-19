@@ -17,7 +17,7 @@ userRoute = APIRouter(prefix='/api/user', tags=['User', 'User Management', 'oaut
 dbSession = SessionLocal()
 
 
-@userRoute.get('/profile', dependencies=[Depends(RateLimiter(times=1, seconds=20))])
+@userRoute.api_route('/profile', dependencies=[Depends(RateLimiter(times=1, seconds=20))], methods=['POST'])
 async def get_user_profile(request: Request):
     """
     Get the user's profile information.
@@ -37,7 +37,7 @@ async def get_user_profile(request: Request):
     return JSONResponse(content=content, status_code=200)
 
 
-@userRoute.post('/update', dependencies=[Depends(RateLimiter(times=1, seconds=20))])
+@userRoute.api_route('/update', dependencies=[Depends(RateLimiter(times=1, seconds=20))], methods=['POST'])
 async def update_user_profile(request: Request):
     """
     Update the user's profile information.
@@ -64,3 +64,23 @@ async def update_user_profile(request: Request):
             return JSONResponse(content={'error': 'Invalid key'}, status_code=400)
     dbSession.commit()
     return JSONResponse(content=user.to_dict(), status_code=201)
+
+
+@userRoute.api_route('/subscribe', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'])
+async def subscribe(request: Request):
+    """
+    Subscribe to a user.
+    订阅用户
+
+    """
+    user_id = request.session.get('user_id')
+    if not user_id or not request.session:
+        response = RedirectResponse(url='/api/auth/login', status_code=302)
+        response.delete_cookie('session')
+        return response
+    if not request.json():
+        return JSONResponse(content={'error': 'Invalid request'}, status_code=400)
+    data = await request.json()
+
+
+

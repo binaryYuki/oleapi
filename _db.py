@@ -1,11 +1,19 @@
 import os
-
+import dotenv
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Boolean, create_engine, Column, Integer, String
 
+dotenv.load_dotenv()
+
 # === DATABASE Configuration ===
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./test.db")  # Replace with your actual database URL
+enableMySQL = os.environ.get("ENABLE_MYSQL", "false")
+if not enableMySQL.lower() in ["true", "false"]:
+    raise RuntimeError("ENABLE_MYSQL must be either 'true' or 'false'")
+if enableMySQL.lower() == "true":
+    DATABASE_URL = os.environ.get("MYSQL_CONN_STRING")
+else:
+    DATABASE_URL = f"sqlite:///./test.db"
 # === DATABASE ===
 
 # Set up SQLAlchemy
@@ -21,6 +29,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+async def testSQL():
+    try:
+        async with engine.connect() as conn:
+            await conn.execute("SELECT 1")
+            return True
+    except Exception as e:
+        print(f"Error connecting to SQL: {e}")
+        return False
 
 
 class User(Base):
