@@ -6,3 +6,5 @@ node_modules
 .venv/*
 *.db
 __pycache__
+test.db
+__pycache__/*
