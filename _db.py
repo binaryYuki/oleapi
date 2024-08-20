@@ -44,18 +44,18 @@ async def testSQL():
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, unique=True, index=True)
-    oidc_sub = Column(String, unique=True, index=True)
-    username = Column(String)
-    email = Column(String)
+    user_id = Column(String(36), unique=True, index=True)  # uuid的长度为36
+    oidc_sub = Column(String(30), unique=True, index=True)
+    username = Column(String(30))
+    email = Column(String(100), unique=True, index=True)
     email_verified = Column(Boolean, default=False)
-    avatar = Column(String, nullable=True)
+    avatar = Column(String(100), nullable=True)
     has_subscribe = Column(Boolean, default=False)
-    sub_vod = Column(String, default="[]")
-    sub_tv = Column(String, default="[]")
-    sub_live = Column(String, default="[]")
-    sub_overseas = Column(String, default="[]")
-    last_login = Column(String, default="")
+    sub_vod = Column(String(255), default="[]")
+    sub_tv = Column(String(255), default="[]")
+    sub_live = Column(String(255), default="[]")
+    sub_overseas = Column(String(255), default="[]")
+    last_login = Column(String(255), default="")
 
     def to_dict(self):
         return {
