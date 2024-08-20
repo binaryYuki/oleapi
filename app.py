@@ -44,8 +44,8 @@ async def lifespan(_: FastAPI):
     await FastAPILimiter.close()
     await redis_client.connection_pool.disconnect()
 
-
-app = FastAPI(lifespan=lifespan)
+# 禁用 openapi.json
+app = FastAPI(lifespan=lifespan, title="Anime API", version="0.1.5.beta-1-g80713e6", openapi_url=None)
 
 app.include_router(authRoute)
 app.include_router(userRoute)
@@ -117,4 +117,5 @@ app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, 
 
 if __name__ == '__main__':
     import uvicorn
+
     uvicorn.run(app, host='0.0.0.0', port=8000)
