@@ -49,4 +49,4 @@ COPY . .
 EXPOSE 8000
 
 # Run the application.
-CMD gunicorn '.venv.lib.python3.12.site-packages.fastapi.middleware.wsgi' --bind=127.0.0.1:8000
+CMD uvicorn main:app --host 127.0.0.1 --port 8000
