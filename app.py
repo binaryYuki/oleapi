@@ -1,6 +1,9 @@
 import logging
 import os
 import random
+import subprocess
+
+import binascii
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -59,8 +62,8 @@ async def index():
         "version": "v0.1.5.beta-1-g80713e6",
         "build": "2024-08-19 11:03:45",
         "author": "binaryYuki <noreply.tzpro.xyz>",
-        "arch": os.system('uname -m'),
-        "commit": "80713e6bc52146d1b9af109bab8d9e008679f5c9",
+        "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
+        "commit": subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode().strip(),
     }
     return JSONResponse(content=info)
 
@@ -105,12 +108,15 @@ async def test(request: Request):
         return response
     return JSONResponse(content={'session': request.session, 'cookies': request.cookies})
 
+secret_key = os.environ.get("SESSION_SECRET")
+if not secret_key:
+    secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
-app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SESSION_SECRET", random.randbytes),
-                   session_cookie='session', max_age=60 * 60 * 12)
+app.add_middleware(SessionMiddleware, secret_key=secret_key,
+                   session_cookie='session', max_age=60 * 60 * 12, domain='*.tzpro.xyz', path='/', same_site='strict')
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['GET', 'POST'],
+app.add_middleware(CORSMiddleware, allow_origins=['*.tzpro.xyz,localhost,127.0.0.1,*.tzpro.uk'], allow_credentials=True, allow_methods=['GET', 'POST'],
                    allow_headers=[
                        'Authorization, Content-Type, Origin, X-Requested-With, Accept, Accept-Encoding, Accept-Language, Host, Referer, User-Agent',
                        'Set-Cookie']),  # 允许跨域请求
