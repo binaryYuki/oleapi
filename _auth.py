@@ -2,14 +2,18 @@ import os
 import random
 import uuid
 from datetime import datetime
-
+import logging
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 import httpx
 from urllib.parse import urlencode
 from sqlalchemy.exc import NoResultFound
 import dotenv
+from sqlalchemy.testing.plugin.plugin_base import logging
+
 from _db import SessionLocal, User, get_db
+
+logging.getLogger()
 
 dotenv.load_dotenv()
 
@@ -105,6 +109,7 @@ async def callback(request: Request, code: str, state: str, db: SessionLocal = D
     request.session['access_token'] = tokens['access_token']
 
     User.last_login = str(datetime.now())
+    logging.info(f"User {user.username} logged in at {User.last_login}")
     db.commit()
 
     # Redirect to the desired page (e.g., home page)
