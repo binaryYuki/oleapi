@@ -13,7 +13,7 @@ from sqlalchemy.testing.plugin.plugin_base import logging
 
 from _db import SessionLocal, User, get_db
 
-logging.getLogger()
+logging.getLogger().setLevel(logging.INFO)
 
 dotenv.load_dotenv()
 
