@@ -14,7 +14,7 @@ else:
     REDIS_DB = int(os.getenv("REDIS_DB", 0))
     REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
     # 在集群环境下，使用 redis:// 连接字符串 并且 tcp()包裹
-    REDIS_CONN = f"redis://default:{REDIS_PASSWORD}@tcp({REDIS_HOST}:{REDIS_PORT})/{REDIS_DB}"
+    REDIS_CONN = f"redis://default:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
 
 # Initialize Redis client
