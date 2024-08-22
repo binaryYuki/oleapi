@@ -1,19 +1,20 @@
+import logging
 import os
 import random
 import uuid
 from datetime import datetime
-import logging
+from logging import getLogger
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 import httpx
 from urllib.parse import urlencode
 from sqlalchemy.exc import NoResultFound
 import dotenv
-from sqlalchemy.testing.plugin.plugin_base import logging
 
 from _db import SessionLocal, User, get_db
 
-logging.getLogger().setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+logger = getLogger(__name__)
 
 dotenv.load_dotenv()
 
