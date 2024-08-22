@@ -1,6 +1,8 @@
 import os
 import random
 import uuid
+from datetime import datetime
+
 from fastapi import FastAPI, APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 import httpx
@@ -101,6 +103,9 @@ async def callback(request: Request, code: str, state: str, db: SessionLocal = D
     request.session['user_id'] = user.user_id
     request.session['user_name'] = user.username
     request.session['access_token'] = tokens['access_token']
+
+    User.last_login = str(datetime.now())
+    db.commit()
 
     # Redirect to the desired page (e.g., home page)
     return RedirectResponse(url=str(redirectURL))
