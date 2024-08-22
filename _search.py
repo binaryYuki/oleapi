@@ -45,11 +45,12 @@ async def search_api(keyword, page=1, size=4):
 
 
 async def link_keywords(keyword):
-    vv = generate_vv_detail()
+    vv = await generate_vv_detail()
+    if type(vv) is bytes:
+        vv = vv.decode()
     # 关键词是个中文字符串，需要进行 URL 编码
     keyword_encoded = url_encode(keyword)
     base_url = f"https://api.olelive.com/v1/pub/index/search/keywords/{keyword_encoded}?_vv={vv}"
-    logging.info(base_url, stack_info=True)
     headers = {
         'User-Agent': _getRandomUserAgent(),
         'Referer': 'https://www.olevod.com/',
