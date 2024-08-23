@@ -51,6 +51,7 @@ async def login(request: Request):
         'state': state
     }
     auth_url = f"{OIDC_AUTHORIZATION_ENDPOINT}?{urlencode(params)}"
+    logging.info(f"Redirecting to: {auth_url}")
     return RedirectResponse(url=auth_url)
 
 
