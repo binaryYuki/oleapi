@@ -42,7 +42,11 @@ def random_string(length: int):
 # Endpoint to initiate login
 @authRoute.get('/login')
 async def login(request: Request):
-    state = request.session['state'] = random_string(16)
+    try:
+        state = request.session['state']
+    except KeyError:
+        state = random_string(16)
+        request.session['state'] = state
     params = {
         'response_type': 'code',
         'client_id': CLIENT_ID,
@@ -51,8 +55,7 @@ async def login(request: Request):
         'state': state
     }
     auth_url = f"{OIDC_AUTHORIZATION_ENDPOINT}?{urlencode(params)}"
-    logging.info(f"Redirecting to: {auth_url}")
-    return RedirectResponse(url=auth_url)
+    return RedirectResponse(url=auth_url, status_code=307)
 
 
 # Endpoint to exchange the authorization code for tokens
