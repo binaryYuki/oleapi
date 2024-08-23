@@ -16,7 +16,7 @@ async def gen_url(typeID: int, period: str, amount=10):
         return JSONResponse(status_code=400, content={'error': 'Invalid period parameter, must be one of: day, week, month, all'})
     if typeID not in [1, 2, 3, 4]:
         return JSONResponse(status_code=400, content={'error': 'Invalid typeID parameter, must be one of: 1 --> 电影, 2 --> 电视剧（连续剧）, 3 --> 综艺, 4 --> 动漫'})
-    vv = gen_vv()
+    vv = await gen_vv()
     url = f"https://api.olelive.com/v1/pub/index/vod/data/rank/{period}/{typeID}/{amount}?_vv={vv}"
     return url
 
