@@ -113,7 +113,7 @@ if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
 app.add_middleware(SessionMiddleware, secret_key=secret_key,
-                   session_cookie='session', max_age=60 * 60 * 12, domain='*.tzpro.xyz', path='/', same_site='strict')
+                   session_cookie='session', max_age=60 * 60 * 12, domain='*.tzpro.xyz', path='/', same_site='lax')
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['GET', 'POST'],
