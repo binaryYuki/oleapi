@@ -5,6 +5,8 @@ import logging
 import random
 import urllib.parse
 import httpx
+from fastapi import Depends
+from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from fastapi.routing import APIRouter
@@ -83,7 +85,7 @@ async def search(request: Request):
     return JSONResponse(result)
 
 
-@searchRouter.post('/keyword')
+@searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'], name='keyword')
 async def keyword(request: Request):
     data = await request.json()
     keyword = data.get('keyword')
@@ -94,7 +96,7 @@ async def keyword(request: Request):
     return JSONResponse(result)
 
 
-@searchRouter.api_route('/detail', methods=['POST'], name='detail')
+@searchRouter.api_route('/detail', methods=['POST'], name='detail', dependencies=[Depends(RateLimiter(times=1, seconds=3))])
 async def detail(request: Request):
     data = await request.json()
     try:
