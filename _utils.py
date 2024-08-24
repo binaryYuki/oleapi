@@ -62,9 +62,6 @@ async def generate_vv_detail():
         if not success:
             raise Exception('Failed to set vv')
 
-    if isinstance(vv, str) and vv.startswith('b'):
-        vv = vv.replace('b', '').replace("'", '')
-
     return vv
 
 

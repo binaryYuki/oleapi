@@ -50,7 +50,10 @@ async def get_key(key: str) -> Optional[str]:
     """
     try:
         value = await redis_client.get(name=key)
-        return value
+        if value is not None:
+            return value.decode()
+        else:
+            return value
     except redis.RedisError as e:
         print(f"Error getting key from Redis: {e}")
         return None
