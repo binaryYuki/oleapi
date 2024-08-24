@@ -55,14 +55,16 @@ async def generate_vv_detail():
     :return:  str
     """
     vv = await get_key('vv')
-    if vv is None:
+
+    if not vv:
         vv = vv_generator()
-        set = await set_key('vv', vv, 60 * 5)
-        if not set:
+        success = await set_key('vv', vv, 60 * 5)
+        if not success:
             raise Exception('Failed to set vv')
-    if vv.startswith('b'):
-        vv.replace('b', '')
-        vv.replace("'", '')
+
+    if isinstance(vv, str) and vv.startswith('b'):
+        vv = vv.replace('b', '').replace("'", '')
+
     return vv
 
 

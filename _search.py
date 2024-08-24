@@ -80,6 +80,8 @@ def url_encode(keyword):
 async def search(request: Request):
     data = await request.json()
     keyword, page, size = data.get('keyword'), data.get('page'), data.get('size')
+    if keyword == '' or keyword == 'your keyword':
+        return JSONResponse({}, status_code=200)
     page, size = int(page), int(size)
     result = await search_api(keyword, page, size)
     return JSONResponse(result)
@@ -89,6 +91,8 @@ async def search(request: Request):
 async def keyword(request: Request):
     data = await request.json()
     keyword = data.get('keyword')
+    if keyword == '' or keyword == 'your keyword':
+        return JSONResponse({}, status_code=200)
     try:
         result = await link_keywords(keyword)
     except Exception as e:
