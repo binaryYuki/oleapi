@@ -76,7 +76,7 @@ def url_encode(keyword):
     return urllib.parse.quote(keyword.encode())
 
 
-@searchRouter.post('/search')
+@searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'], name='search')
 async def search(request: Request):
     data = await request.json()
     keyword, page, size = data.get('keyword'), data.get('page'), data.get('size')
@@ -105,8 +105,8 @@ async def detail(request: Request):
     data = await request.json()
     try:
         id = data.get('id')
-    except:
-        return JSONResponse({"error": "Invalid Request, missing param: id"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": "Invalid Request, missing param: id"}, status_code=400, headers={"X-Error": str(e)})
     vv = await generate_vv_detail()
     url = f"https://api.olelive.com/v1/pub/vod/detail/{id}/true?_vv={vv}"
     headers = {
