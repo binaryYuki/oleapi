@@ -118,7 +118,7 @@ async def callback(request: Request, code: str, state: str, db: SessionLocal = D
     db.commit()
 
     # Redirect to the desired page (e.g., home page)
-    return RedirectResponse(url=str(redirectURL))
+    return RedirectResponse(url=str(redirectURL), headers={'Set-Cookie': f'session={request.session}'}, status_code=307)
 
 
 # Function to create or fetch a user based on OIDC userinfo
