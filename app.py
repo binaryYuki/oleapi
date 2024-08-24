@@ -75,38 +75,38 @@ async def get_session(request: Request):
     return JSONResponse(content={'session': request.session})
 
 
-@app.get('/test', dependencies=[Depends(RateLimiter(times=1, seconds=1))])
-async def test(request: Request):
-    """
-    测试接口 返回用户的 session 信息
-    限速 1 次/秒
-    :param request:  请求对象
-    :return:  返回用户的 session 信息/html 页面 要求登录
-    """
-    # 返回用户的 session 等原始请求信息 包含 cookie
-    if request.session == {} and request.cookies == {}:
-        # 一个按钮 跳转到 /api/auth/login
-        html_content = """
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-            <meta charset="UTF-8">
-            <title>Test</title>
-        </head>
-        <body>
-            <h3>还没有登录</h3>
-            <h4>该接口仅供测试</h4>
-            <h5>点击下方按钮登录</h5>
-            <a href="/api/auth/login">Login</a>
-        </body>
-        </html>
-        """
-        return Response(content=html_content, media_type="text/html")
-    elif request.session == {} and request.cookies != {}:
-        response = RedirectResponse(url='/test')
-        response.delete_cookie('session')
-        return response
-    return JSONResponse(content={'session': request.session, 'cookies': request.cookies})
+# @app.get('/test', dependencies=[Depends(RateLimiter(times=1, seconds=1))])
+# async def test(request: Request):
+#     """
+#     测试接口 返回用户的 session 信息
+#     限速 1 次/秒
+#     :param request:  请求对象
+#     :return:  返回用户的 session 信息/html 页面 要求登录
+#     """
+#     # 返回用户的 session 等原始请求信息 包含 cookie
+#     if request.session == {} and request.cookies == {}:
+#         # 一个按钮 跳转到 /api/auth/login
+#         html_content = """
+#         <!DOCTYPE html>
+#         <html lang="zh-CN">
+#         <head>
+#             <meta charset="UTF-8">
+#             <title>Test</title>
+#         </head>
+#         <body>
+#             <h3>还没有登录</h3>
+#             <h4>该接口仅供测试</h4>
+#             <h5>点击下方按钮登录</h5>
+#             <a href="/api/auth/login">Login</a>
+#         </body>
+#         </html>
+#         """
+#         return Response(content=html_content, media_type="text/html")
+#     elif request.session == {} and request.cookies != {}:
+#         response = RedirectResponse(url='/test')
+#         response.delete_cookie('session')
+#         return response
+#     return JSONResponse(content={'session': request.session, 'cookies': request.cookies})
 
 secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:

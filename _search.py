@@ -70,7 +70,8 @@ def url_encode(keyword):
     return urllib.parse.quote(keyword.encode())
 
 
-@searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'], name='search')
+@searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'],
+                        name='search')
 async def search(request: Request):
     data = await request.json()
     keyword, page, size = data.get('keyword'), data.get('page'), data.get('size')
@@ -81,7 +82,8 @@ async def search(request: Request):
     return JSONResponse(result)
 
 
-@searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'], name='keyword')
+@searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'],
+                        name='keyword')
 async def keyword(request: Request):
     data = await request.json()
     keyword = data.get('keyword')
@@ -94,13 +96,15 @@ async def keyword(request: Request):
     return JSONResponse(result)
 
 
-@searchRouter.api_route('/detail', methods=['POST'], name='detail', dependencies=[Depends(RateLimiter(times=1, seconds=3))])
+@searchRouter.api_route('/detail', methods=['POST'], name='detail',
+                        dependencies=[Depends(RateLimiter(times=1, seconds=3))])
 async def detail(request: Request):
     data = await request.json()
     try:
         id = data.get('id')
     except Exception as e:
-        return JSONResponse({"error": "Invalid Request, missing param: id"}, status_code=400, headers={"X-Error": str(e)})
+        return JSONResponse({"error": "Invalid Request, missing param: id"}, status_code=400,
+                            headers={"X-Error": str(e)})
     vv = await generate_vv_detail()
     url = f"https://api.olelive.com/v1/pub/vod/detail/{id}/true?_vv={vv}"
     headers = {
