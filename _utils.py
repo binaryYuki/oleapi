@@ -50,12 +50,18 @@ def vv_generator():
 
 
 async def generate_vv_detail():
+    """
+    生成 vv 参数
+    :return:  str
+    """
     vv = await get_key('vv')
     if vv is None:
         vv = vv_generator()
         set = await set_key('vv', vv, 60 * 5)
         if not set:
             raise Exception('Failed to set vv')
+    vv.replace('b', '')
+    vv.replace("'", '')
     return vv
 
 

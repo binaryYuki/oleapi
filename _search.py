@@ -30,8 +30,8 @@ async def search_api(keyword, page=1, size=4):
     vv = await generate_vv_detail()
     # 关键词是个中文字符串，需要进行 URL 编码
     keyword = url_encode(keyword)
-    base_url = f"https://api.olelive.com/v1/pub/index/search/{keyword}/vod/0/{page}/{size}?_vv={vv}"
-    logging.info(base_url, stack_info=True)
+    base_url = f"https://api.olelive.com/v1/pub/index/search/{keyword}/vod/0/{page}/{size}?_vv={str(vv)}"
+    logging.info(base_url)
     headers = {
         'User-Agent': _getRandomUserAgent(),
         'Referer': 'https://www.olevod.com/',
