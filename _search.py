@@ -27,7 +27,7 @@ async def search_api(keyword, page=1, size=4):
     :param size:  每页数量
     :return:  返回搜索结果
     """
-    vv = generate_vv_detail()
+    vv = await generate_vv_detail()
     # 关键词是个中文字符串，需要进行 URL 编码
     keyword = url_encode(keyword)
     base_url = f"https://api.olelive.com/v1/pub/index/search/{keyword}/vod/0/{page}/{size}?_vv={vv}"
