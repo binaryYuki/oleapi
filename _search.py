@@ -6,8 +6,6 @@ from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from fastapi.routing import APIRouter
-
-from _redis import get_key, set_key
 from _utils import _getRandomUserAgent, generate_vv_detail
 
 searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
