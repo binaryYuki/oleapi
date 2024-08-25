@@ -17,12 +17,14 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      -
-        name: Read .env file
-        id: dotenv
-        run:  |
-          echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          echo "BUILD_AT=$(date)" >> $GITHUB_ENV
+      - name: Read Commit ID
+        id: commit_id
+        run: echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Read Build Date
+        id: build_date
+        run: echo "BUILD_AT=$(date)" >> $GITHUB_ENV
+
 
       -
         name: Login to Docker Hub
@@ -36,13 +38,9 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-
           push: true
           tags: akkk1234/oleapi:latest
           build-args: |
             COMMIT_ID=${{ env.COMMIT_ID }}
-            BUILD_AT=${{ env.BUILD_AT }}
-      - name: trigger deploy webhook
-        run: |
-          curl -X POST -H "Content-Type: application/json" -d '{"token": ${{ secrets.DEPLOY_TOKEN }}}' ${{ secrets.DEPLOY_WEBHOOK }}
+            BUILD_AT=${{ env.date }}
             
