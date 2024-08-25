@@ -22,7 +22,7 @@ jobs:
         id: dotenv
         run:  |
           echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
       -
         name: Login to Docker Hub
@@ -43,5 +43,4 @@ jobs:
             COMMIT_ID=${{ env.COMMIT_ID }}
             BUILD_DATE=${{ env.BUILD_DATE }}
             VCS_REF=${{ env.COMMIT_ID }}
-            VERSION=latest
             

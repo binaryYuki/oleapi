@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import random
@@ -61,7 +62,7 @@ async def index():
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
         "version": "v0.1.5-" + version_suffix,
-        "build": os.getenv("BUILD_DATE", ""),
+        "build": os.getenv("BUILD_DATE", datetime.datetime.now().isoformat()),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
