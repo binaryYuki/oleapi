@@ -58,9 +58,10 @@ app.include_router(trendingRoute)
 
 @app.get('/')
 async def index():
+    version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
-        "version": "v0.1.5.beta-1-g80713e6",
-        "build": "2024-08-19 11:03:45",
+        "version": "v0.1.5-" + version_suffix,
+        "build": os.getenv("BUILD_DATE", ""),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
