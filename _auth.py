@@ -117,8 +117,15 @@ async def callback(request: Request, code: str, state: str, db: SessionLocal = D
     logging.info(f"User {user.username} logged in at {User.last_login}")
     db.commit()
 
+    if 'redirect' in request.session:
+        redirectURL = request.session['redirect']
+        del request.session['redirect']
+        return RedirectResponse(url=str(redirectURL), headers={'Set-Cookie': f'session={request.session}'},
+                                status_code=307)
+
     # Redirect to the desired page (e.g., home page)
-    return RedirectResponse(url=str(redirectURL), headers={'Set-Cookie': f'session={request.session}'}, status_code=307)
+    return RedirectResponse(url=str(os.environ.get("REDIRECT_PATH", request.headers.get("referer", "/"))),
+                            headers={'Set-Cookie': f'session={request.session}'}, status_code=307)
 
 
 # Function to create or fetch a user based on OIDC userinfo
