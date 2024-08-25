@@ -7,14 +7,13 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      -
-        name: Set up QEMU
+
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
+
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Read Commit ID
@@ -23,17 +22,18 @@ jobs:
 
       - name: Read Build Date
         id: build_date
-        run: echo "BUILD_AT=$(date)" >> $GITHUB_ENV
+        run: echo "BUILD_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
+      - name: Verify Environment Variables
+        run: echo "COMMIT_ID=${{ env.COMMIT_ID }} BUILD_AT=${{ env.BUILD_AT }}"
 
-      -
-        name: Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Build and push
+
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -43,4 +43,3 @@ jobs:
           build-args: |
             COMMIT_ID=${{ env.COMMIT_ID }}
             BUILD_AT=${{ env.BUILD_AT }}
-            
