@@ -42,5 +42,5 @@ jobs:
           tags: akkk1234/oleapi:latest
           build-args: |
             COMMIT_ID=${{ env.COMMIT_ID }}
-            BUILD_AT=${{ env.date }}
+            BUILD_AT=${{ env.BUILD_AT }}
             
