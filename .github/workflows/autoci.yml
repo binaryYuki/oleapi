@@ -43,4 +43,7 @@ jobs:
             COMMIT_ID=${{ env.COMMIT_ID }}
             BUILD_AT=${{ env.PUSH_TIME }}
             VCS_REF=${{ env.COMMIT_ID }}
+      - name: trigger deploy webhook
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d '{"token": ${{ secrets.DEPLOY_TOKEN }}}' ${{ secrets.DEPLOY_WEBHOOK }}
             
