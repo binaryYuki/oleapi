@@ -1,32 +1,29 @@
-import datetime
+import logging
 import logging
 import os
 import random
 import subprocess
+from contextlib import asynccontextmanager
 
 import binascii
-from fastapi.responses import JSONResponse
-from dotenv import load_dotenv
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import RedirectResponse, Response
-
-from _db import testSQL
-from _redis import get_key, redis_client, set_key
-from _trend import trendingRoute
-from _user import userRoute
-from _auth import authRoute
-from _search import searchRouter
-from starlette.middleware.sessions import SessionMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
-from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
-from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.requests import Request
+
+from _auth import authRoute
+from _db import testSQL
+from _redis import redis_client
+from _search import searchRouter
+from _trend import trendingRoute
+from _user import userRoute
 
 load_dotenv()
 
@@ -48,6 +45,7 @@ async def lifespan(_: FastAPI):
     await FastAPILimiter.close()
     await redis_client.connection_pool.disconnect()
 
+
 # 禁用 openapi.json
 app = FastAPI(lifespan=lifespan, title="Anime API", version="0.1.5.beta-1-g80713e6", openapi_url=None)
 
@@ -62,7 +60,7 @@ async def index():
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
         "version": "v0.1.5-" + version_suffix,
-        "build": os.getenv("BUILD_AT", ""),
+        "build_at": os.environ.get("BUILD_AT", ""),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
@@ -75,6 +73,12 @@ async def get_session(request: Request):
     if request.session == {}:
         return JSONResponse(content={'session': 'None'}, status_code=401)
     return JSONResponse(content={'session': request.session})
+
+
+@app.api_route('/test', methods=['GET'])
+async def test(request: Request):
+    # dump python os.environ all env args into a json
+    return JSONResponse(content=dict(os.environ))
 
 
 # @app.get('/test', dependencies=[Depends(RateLimiter(times=1, seconds=1))])
