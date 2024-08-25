@@ -22,7 +22,7 @@ jobs:
         id: dotenv
         run:  |
           echo "COMMIT_ID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "PUSH_TIME=${{ github.event.head_commit.timestamp }}" >> $GITHUB_ENV
 
       -
         name: Login to Docker Hub
@@ -41,6 +41,6 @@ jobs:
           tags: akkk1234/oleapi:latest
           build-args: |
             COMMIT_ID=${{ env.COMMIT_ID }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
+            BUILD_AT=${{ env.PUSH_TIME }}
             VCS_REF=${{ env.COMMIT_ID }}
             
