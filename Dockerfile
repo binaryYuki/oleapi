@@ -30,6 +30,7 @@ RUN adduser \
 # install pkg-config and mysqlclient dependencies to build mysqlclient
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    git \
     libmariadb-dev-compat \
     libmariadb-dev \
     pkg-config \
