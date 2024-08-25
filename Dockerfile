@@ -1,6 +1,10 @@
 ARG PYTHON_VERSION=3.12.4
 FROM python:${PYTHON_VERSION}-slim As base
 
+ARG COMMIT_ID
+ENV COMMIT_ID=${COMMIT_ID}
+
+
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -30,7 +34,6 @@ RUN adduser \
 # install pkg-config and mysqlclient dependencies to build mysqlclient
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    git \
     libmariadb-dev-compat \
     libmariadb-dev \
     pkg-config \

@@ -63,7 +63,7 @@ async def index():
         "build": "2024-08-19 11:03:45",
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
-        "commit": subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).stdout.decode().strip(),
+        "commit": os.getenv("COMMIT_ID", ""),
     }
     return JSONResponse(content=info)
 
