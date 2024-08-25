@@ -22,7 +22,7 @@ jobs:
 
       - name: Read Build Date
         id: build_date
-        run: echo "BUILD_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+        run: echo "BUILD_AT=$(date -u +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
 
       - name: Verify Environment Variables
         run: echo "COMMIT_ID=${{ env.COMMIT_ID }} BUILD_AT=${{ env.BUILD_AT }}"

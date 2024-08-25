@@ -1,5 +1,4 @@
 import logging
-import logging
 import os
 import random
 import subprocess
@@ -73,12 +72,6 @@ async def get_session(request: Request):
     if request.session == {}:
         return JSONResponse(content={'session': 'None'}, status_code=401)
     return JSONResponse(content={'session': request.session})
-
-
-@app.api_route('/test', methods=['GET'])
-async def test(request: Request):
-    # dump python os.environ all env args into a json
-    return JSONResponse(content=dict(os.environ))
 
 
 # @app.get('/test', dependencies=[Depends(RateLimiter(times=1, seconds=1))])
