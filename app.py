@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -16,6 +17,7 @@ from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
+from starlette.responses import HTMLResponse
 
 from _auth import authRoute
 from _db import testSQL
@@ -64,7 +66,16 @@ async def index():
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
     }
-    return JSONResponse(content=info)
+
+    # 将字典转换为 JSON 字符串并格式化
+    json_data = json.dumps(info, indent=4)
+
+    # 将 JSON 数据嵌入到 HTML 页面中
+    html_content = f"""
+            <pre>{json_data}</pre>
+    """
+
+    return HTMLResponse(content=html_content)
 
 
 @app.get('/getsession', dependencies=[Depends(RateLimiter(times=1, seconds=10))])
@@ -111,8 +122,12 @@ secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
-app.add_middleware(SessionMiddleware, secret_key=secret_key,
-                   session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
+if os.getenv("LOCAL_TEST", "false").lower() == "true":
+    app.add_middleware(SessionMiddleware, secret_key=secret_key, session_cookie='session', max_age=60 * 60 * 12,
+                       same_site='lax')
+else:
+    app.add_middleware(SessionMiddleware, secret_key=secret_key,
+                       session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['GET', 'POST'],
