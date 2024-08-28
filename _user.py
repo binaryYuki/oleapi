@@ -1,11 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import JSONResponse
+from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import RedirectResponse
-from _db import SessionLocal, User, get_db
-from fastapi import Depends, FastAPI
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
+
+from _db import SessionLocal, User
 
 app = FastAPI()
 

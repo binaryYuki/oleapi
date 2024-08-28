@@ -20,7 +20,7 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from _auth import authRoute
-from _db import testSQL
+from _db import init_db
 from _redis import redis_client
 from _search import searchRouter
 from _trend import trendingRoute
@@ -40,7 +40,7 @@ async def lifespan(_: FastAPI):
     if test:
         logging.info("Redis connection established")
     if os.getenv("MYSQL_CONN_STRING"):
-        await testSQL()
+        await init_db()
         logging.info("MySQL connection established")
     yield
     await FastAPILimiter.close()
@@ -48,7 +48,7 @@ async def lifespan(_: FastAPI):
 
 
 # 禁用 openapi.json
-app = FastAPI(lifespan=lifespan, title="Anime API", version="0.1.5.beta-1-g80713e6", openapi_url=None)
+app = FastAPI(lifespan=lifespan, title="Anime API", version="1.0.0.beta", openapi_url=None)
 
 app.include_router(authRoute)
 app.include_router(userRoute)
@@ -60,7 +60,7 @@ app.include_router(trendingRoute)
 async def index():
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
-        "version": "v0.1.5-" + version_suffix,
+        "version": "v1.0.0-" + version_suffix,
         "build_at": os.environ.get("BUILD_AT", ""),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
