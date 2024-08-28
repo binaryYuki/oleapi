@@ -116,11 +116,7 @@ secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
-if os.getenv("LOCAL_TEST", "false").lower() == "true":
-    app.add_middleware(SessionMiddleware, secret_key=secret_key, session_cookie='session', max_age=60 * 60 * 12,
-                       same_site='lax')
-else:
-    app.add_middleware(SessionMiddleware, secret_key=secret_key,
+app.add_middleware(SessionMiddleware, secret_key=secret_key,
                        session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
