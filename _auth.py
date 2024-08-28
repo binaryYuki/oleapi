@@ -128,7 +128,7 @@ async def callback(request: Request, code: str, state: str):
     logging.info(f"User {user.username} logged in at {User.last_login}")
     await db.commit()
 
-    if 'redirect' in request.session:
+    if 'redirect_url' in request.session:
         redirect_URL = request.session['redirect_url']
         del request.session['redirect_url']
         return RedirectResponse(url=str(redirect_URL), headers={'Set-Cookie': f'session={request.session}'},
