@@ -3,7 +3,7 @@ import os
 from enum import Enum as PyEnum
 
 import dotenv
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -112,3 +112,15 @@ async def init_db():
     async with engine.begin() as conn:
         # 执行创建表的命令
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def test_db_connection():
+    try:
+        async with SessionLocal() as session:
+            async with session.begin():
+                # 执行一个简单的查询
+                result = await session.execute(text("SELECT 1"))
+                assert result.scalar() == 1
+                return True
+    except Exception as e:
+        raise ConnectionError(f"Database connection failed: {str(e)}")
