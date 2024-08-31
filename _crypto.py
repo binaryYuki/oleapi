@@ -48,8 +48,8 @@ async def get_crypto():
 # todo: test method, remove it in production
 @cryptoRouter.get('/decrypt')
 async def decrypt_data(request: Request):
-    await request.json()
-    data = request.json()
+    data = await request.json()
+    data = data.get("data")
     with open("private.pem", "rb") as f:
         private_key = f.read()
     # Decrypt the data
