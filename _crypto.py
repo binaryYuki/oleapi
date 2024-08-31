@@ -3,6 +3,7 @@ import os
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.routing import APIRouter
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 cryptoRouter = APIRouter(prefix='/api/crypto', tags=['Crypto', 'Cryptography'])
@@ -37,8 +38,21 @@ async def init_crypto():
     return True
 
 
-@cryptoRouter.get('/get')
+@cryptoRouter.api_route('/get', methods=['GET'])
 async def get_crypto():
     with open("public.pem", "rb") as f:
         public_key = f.read()
     return JSONResponse(content={"status": "success", "public_key": public_key.decode('utf-8')})
+
+
+# todo: test method, remove it in production
+@cryptoRouter.get('/decrypt')
+async def decrypt_data(request: Request):
+    await request.json()
+    data = request.json()
+    with open("private.pem", "rb") as f:
+        private_key = f.read()
+    # Decrypt the data
+    private_key = serialization.load_pem_private_key(private_key, password=None)
+    decrypted_data = private_key.decrypt(data)
+    return JSONResponse(content={"status": "success", "decrypted_data": decrypted_data.decode('utf-8')})
