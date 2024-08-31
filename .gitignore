@@ -8,3 +8,5 @@ node_modules
 __pycache__
 test.db
 __pycache__/*
+private.pem
+public.pem

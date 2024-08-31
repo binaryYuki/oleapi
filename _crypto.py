@@ -1,0 +1,44 @@
+import os
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi.routing import APIRouter
+from starlette.responses import JSONResponse
+
+cryptoRouter = APIRouter(prefix='/api/crypto', tags=['Crypto', 'Cryptography'])
+
+
+async def init_crypto():
+    if os.path.exists("private.pem"):
+        os.remove("private.pem")
+    if os.path.exists("public.pem"):
+        os.remove("public.pem")
+
+    # Generate a new private key
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=4096
+    )
+    # Serialize the private key
+    pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    )
+    public_key = private_key.public_key()
+    pem_public = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    with open("private.pem", "wb") as f:
+        f.write(pem)
+    with open("public.pem", "wb") as f:
+        f.write(pem_public)
+    return True
+
+
+@cryptoRouter.get('/get')
+async def get_crypto():
+    with open("public.pem", "rb") as f:
+        public_key = f.read()
+    return JSONResponse(content={"status": "success", "public_key": public_key.decode('utf-8')})
