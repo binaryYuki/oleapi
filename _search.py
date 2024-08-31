@@ -1,11 +1,14 @@
 import logging
 import urllib.parse
+
 import httpx
 from fastapi import Depends
+from fastapi.routing import APIRouter
 from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from fastapi.routing import APIRouter
+
+from _db import cache_vod_data
 from _utils import _getRandomUserAgent, generate_vv_detail
 
 searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
@@ -36,7 +39,7 @@ async def search_api(keyword, page=1, size=4):
     async with httpx.AsyncClient() as client:
         response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
-        return JSONResponse(content={"error": "Upstream Error"}, status_code=501)
+        raise ConnectionError("Upstream Error")
     return response.json()
 
 
@@ -78,7 +81,12 @@ async def search(request: Request):
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
     page, size = int(page), int(size)
-    result = await search_api(keyword, page, size)
+    try:
+        result = await search_api(keyword, page, size)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=501)
+    if result:
+        await cache_vod_data(result)
     return JSONResponse(result)
 
 
