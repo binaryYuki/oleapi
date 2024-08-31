@@ -26,7 +26,7 @@ OIDC_AUTHORIZATION_ENDPOINT = os.environ.get('OIDC_AUTHORIZATION_ENDPOINT')
 OIDC_TOKEN_ENDPOINT = os.environ.get('OIDC_TOKEN_ENDPOINT')
 OIDC_USERINFO_ENDPOINT = os.environ.get('OIDC_USERINFO_ENDPOINT')
 OIDC_SCOPES = os.environ.get('OIDC_SCOPES')
-REDIRECT_URI = os.environ.get('REDIRECT_URI')
+OIDC_CALLBACK_URL = os.environ.get('OIDC_CALLBACK_URL', 'http://localhost:8000/api/auth/callback')
 CLIENT_ID = os.environ.get('CLIENT_ID')
 CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
 user_agent = "TZPro/0.0.1beta (Linux; Ubuntu 20.04)"
@@ -54,7 +54,7 @@ async def login(request: Request):
     params = {
         'response_type': 'code',
         'client_id': CLIENT_ID,
-        'redirect_uri': REDIRECT_URI,
+        'redirect_uri': OIDC_CALLBACK_URL,
         'scope': OIDC_SCOPES,
         'state': state
     }
@@ -67,7 +67,7 @@ async def exchange_code_for_tokens(code: str):
     payload = {
         'grant_type': 'authorization_code',
         'code': code,
-        'redirect_uri': REDIRECT_URI,
+        'redirect_uri': OIDC_CALLBACK_URL,
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET
     }
