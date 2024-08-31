@@ -3,7 +3,7 @@ import os
 from enum import Enum as PyEnum
 
 import dotenv
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -49,9 +49,12 @@ class User(Base):
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "avatar": self.avatar,
             "username": self.username,
-            "email": self.email,
-            "is_active": self.is_active
+            "email_verified": self.email_verified,
+            "is_active": self.is_active,
+            "last_login": self.last_login.strftime("%Y-%m-%d %H:%M:%S"),
+            "sub_limit": self.sub_limit
         }
 
 
@@ -83,27 +86,26 @@ class VodInfo(Base):
     __tablename__ = "vod_info"
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
-    vod_id = Column(String(32), index=True, unique=True)
-    vod_name = Column(String(32), index=True)
-    vod_typeId = Column(Integer(), index=True)
-    vod_typeId1 = Column(Integer(), index=True)
-    vod_remarks = Column(String(24), default="")
+    vod_id = Column(String(32), index=True, unique=True, nullable=False)
+    vod_name = Column(String(32), index=True, default="")
+    vod_typeId = Column(Integer(), index=True, default=0)
+    vod_typeId1 = Column(Integer(), index=True, default=0)
+    vod_remarks = Column(String(24), default="")  # Remarks or status of the VOD (e.g., "完结" means "completed")
     vod_is_vip = Column(Boolean, default=False)
     vod_episodes = Column(Integer(), default=0)
     vod_urls = Column(String(256), default="")
+    vod_new = Column(Boolean, default=False)
+    vod_version = Column(String(16), default="未知")
+    vod_score = Column(Float(), default=0.0)
+
     # 添加 relationship，反向关系到 VodSub
     subs = relationship("VodSub", back_populates="vod_info")
 
     def to_dict(self):
         return {
-            "vod_id": self.vod_id,
-            "vod_name": self.vod_name,
-            "vod_typeId": self.vod_typeId,
-            "vod_typeId1": self.vod_typeId1,
-            "vod_remarks": self.vod_remarks,
-            "vod_is_vip": self.vod_is_vip,
-            "vod_episodes": self.vod_episodes,
-            "vod_urls": self.vod_urls
+            column.name: getattr(self, column.name)
+            for column in self.__table__.columns
+            if column.name != 'subs'  # Exclude the 'subs' relationship
         }
 
 
@@ -124,3 +126,45 @@ async def test_db_connection():
                 return True
     except Exception as e:
         raise ConnectionError(f"Database connection failed: {str(e)}")
+
+
+async def cache_vod_data(data):
+    db: SessionLocal = SessionLocal()
+    for vod_data in data["data"]["data"]:
+        if vod_data["type"] == "vod":
+            for item in vod_data["list"]:
+                # 查找是否存在相同的 vod_id
+                stmt = select(VodInfo).where(VodInfo.vod_id == str(item["id"]))
+                result = await db.execute(stmt)
+                db_vod = result.scalar_one_or_none()
+                if db_vod:
+                    # 更新现有数据
+                    db_vod.vod_name = item["name"]
+                    db_vod.vod_typeId = item["typeId"]
+                    db_vod.vod_typeId1 = item["typeId1"]
+                    db_vod.vod_remarks = item["remarks"]
+                    db_vod.vod_is_vip = item["vip"]
+                    db_vod.vod_episodes = item.get("episodes", 0)
+                    db_vod.vod_urls = item.get("pic", "")
+                    db_vod.vod_new = item.get("new", False)
+                    db_vod.vod_version = item.get("version", "未知")
+                    db_vod.vod_score = item.get("score", 0.0)
+                else:
+                    # 插入新数据
+                    new_vod = VodInfo(
+                        vod_id=str(item["id"]),
+                        vod_name=item["name"],
+                        vod_typeId=item["typeId"],
+                        vod_typeId1=item["typeId1"],
+                        vod_remarks=item["remarks"],
+                        vod_is_vip=item["vip"],
+                        vod_episodes=item.get("episodes", 0),
+                        vod_urls=item.get("pic", ""),
+                        vod_new=item.get("new", False),
+                        vod_version=item.get("version", "未知"),
+                        vod_score=item.get("score", 0.0)
+                    )
+                    db.add(new_vod)
+
+                await db.commit()
+    await db.close()
