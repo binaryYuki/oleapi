@@ -2,14 +2,9 @@ name: ci
 
 on:
   push:
-    branches:
-      - main
-  schedule:
-    - cron: '0 16 * * *' # 这是 UTC 时间，对应中国时间每天的 12 点
 
 jobs:
   docker:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')" # 检查提交消息中是否包含 [skip ci]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
