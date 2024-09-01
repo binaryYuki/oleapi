@@ -1,3 +1,4 @@
+import logging
 import os
 
 from cryptography.hazmat.primitives import serialization
@@ -11,9 +12,11 @@ cryptoRouter = APIRouter(prefix='/api/crypto', tags=['Crypto', 'Cryptography'])
 
 async def init_crypto():
     if os.path.exists("private.pem"):
-        os.remove("private.pem")
+        logging.info("Removing old private key")
+        os.remove(os.path.join("private.pem"))
     if os.path.exists("public.pem"):
-        os.remove("public.pem")
+        logging.info("Removing old public key")
+        os.remove(os.path.join("public.pem"))
 
     # Generate a new private key
     private_key = rsa.generate_private_key(
