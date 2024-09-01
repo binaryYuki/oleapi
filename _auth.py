@@ -11,6 +11,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
+from starlette.responses import JSONResponse
 
 from _db import SessionLocal, User
 
@@ -139,6 +140,23 @@ async def callback(request: Request, code: str, state: str):
                             headers={'Set-Cookie': f'session={request.session}'}, status_code=307)
 
     # Function to create or fetch a user based on OIDC userinfo
+
+
+@authRoute.api_route('/oauth_callback', methods=['POST', 'PUT'])
+async def oauth_callback(request: Request):
+    from _crypto import decrypt_data
+    data = await request.body()
+    data = await decrypt_data(data)
+    if not dict(data):
+        return HTTPException(status_code=400, detail="Invalid data")
+    try:
+        user = await get_or_create_user(dict(data))
+    except ChildProcessError as e:
+        return HTTPException(status_code=400, detail="Failed to authenticate")
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return HTTPException(status_code=400, detail="Failed to authenticate")
+    return JSONResponse(content=user.to_dict(), status_code=200)
 
 
 async def get_or_create_user(userinfo: dict):

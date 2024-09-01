@@ -1,8 +1,8 @@
 import logging
 import os
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from fastapi.routing import APIRouter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -39,6 +39,19 @@ async def init_crypto():
     with open("public.pem", "wb") as f:
         f.write(pem_public)
     return True
+
+
+async def decrypt_data(data: bytes):
+    with open("private.pem", "rb") as f:
+        private_key = f.read()
+    # Decrypt the data
+    private_key = serialization.load_pem_private_key(private_key, password=None)
+    decrypted_data = private_key.decrypt(data, padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+        algorithm=hashes.SHA256(),
+        label=None
+    ))
+    return decrypted_data.decode('utf-8')
 
 
 @cryptoRouter.api_route('/get', methods=['GET'])
