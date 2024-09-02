@@ -1,9 +1,11 @@
 import datetime
+import logging
 import os
 from enum import Enum as PyEnum
 
 import dotenv
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
@@ -112,8 +114,16 @@ class VodInfo(Base):
 # 创建或修改数据库中的表
 async def init_db():
     async with engine.begin() as conn:
-        # 执行创建表的命令
-        await conn.run_sync(Base.metadata.create_all)
+        try:
+            await conn.run_sync(Base.metadata.create_all, checkfirst=False)
+        except OperationalError as e:
+            logging.info("重建数据库表")
+            # 删除所有表
+            await conn.run_sync(Base.metadata.drop_all)
+            # 创建所有表
+            await conn.run_sync(Base.metadata.create_all)
+        except Exception as e:
+            raise RuntimeError(f"Database initialization failed: {str(e)}")
 
 
 async def test_db_connection():
