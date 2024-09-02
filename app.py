@@ -123,10 +123,13 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key,
                        session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_credentials=True, allow_methods=['GET', 'POST'],
-                   allow_headers=[
-                       'Authorization, Content-Type, Origin, X-Requested-With, Accept, Accept-Encoding, Accept-Language, Host, Referer, User-Agent',
-                       'Set-Cookie']),  # 允许跨域请求
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
+    allow_credentials=True,
+    allow_methods=['GET', 'POST'],
+    allow_headers=['*']
+)
 
 if __name__ == '__main__':
     import uvicorn
