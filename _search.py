@@ -73,7 +73,7 @@ def url_encode(keyword):
     return urllib.parse.quote(keyword.encode())
 
 
-@searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'],
+@searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=5, seconds=1))], methods=['POST'],
                         name='search')
 async def search(request: Request):
     data = await request.json()

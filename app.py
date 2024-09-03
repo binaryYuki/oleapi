@@ -123,13 +123,22 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key,
                        session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
-    allow_credentials=True,
-    allow_methods=['GET', 'POST'],
-    allow_headers=['*']
-)
+if os.getenv("DEBUG", "false").lower() == "false":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
+        allow_credentials=True,
+        allow_methods=['GET', 'POST'],
+        allow_headers=['*']
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['*'],
+        allow_credentials=True,
+        allow_methods=['GET', 'POST'],
+        allow_headers=['*']
+    )
 
 if __name__ == '__main__':
     import uvicorn

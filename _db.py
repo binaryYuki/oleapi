@@ -44,6 +44,8 @@ class User(Base):
     oidc_sub = Column(String(64), default="")
     sub_limit = Column(Integer(), default=3)
     bark_token = Column(String(64), default="")
+    bark_server = Column(String(64), default="")
+    push_logs = relationship("PushLog", back_populates="user")  # 修正: 使用 relationship 并 back_populates
     sub = relationship("VodSub", back_populates="user")  # 修正: 使用 relationship 并 back_populates
     last_login = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
@@ -58,6 +60,9 @@ class User(Base):
             "last_login": self.last_login.strftime("%Y-%m-%d %H:%M:%S"),
             "sub_limit": self.sub_limit
         }
+
+    def check_token(self, token):
+        return self.bark_token == token
 
 
 class VodSub(Base):
@@ -108,6 +113,31 @@ class VodInfo(Base):
             column.name: getattr(self, column.name)
             for column in self.__table__.columns
             if column.name != 'subs'  # Exclude the 'subs' relationship
+        }
+
+
+class PushLog(Base):
+    __tablename__ = "push_logs"
+
+    id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
+    push_id = Column(String(32), index=True, unique=True)
+    push_receiver = Column(String(36), ForeignKey('users.user_id'))
+    push_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
+    push_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
+    push_result = Column(Boolean, default=False)
+    push_message = Column(String(256), default="")
+    push_server = Column(String(32), default="")
+
+    user = relationship("User", back_populates="push_logs")
+
+    def to_dict(self):
+        return {
+            "push_id": self.push_id,
+            "push_by": self.push_by,
+            "push_channel": self.push_channel,
+            "push_at": self.push_at,
+            "push_result": self.push_result,
+            "push_message": self.push_message
         }
 
 
