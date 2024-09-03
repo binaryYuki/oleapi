@@ -85,6 +85,8 @@ async def search(request: Request):
         result = await search_api(keyword, page, size)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=501)
+    if result and result['data']['total'] == 0:
+        return JSONResponse({"error": "No result"}, status_code=200)
     if result:
         await cache_vod_data(result)
     return JSONResponse(result)

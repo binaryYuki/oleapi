@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter.depends import RateLimiter
 from sqlalchemy import select
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
 
 from _db import SessionLocal, User
 
@@ -89,20 +88,3 @@ async def update_user_profile(request: Request):
             setattr(user, key, data[key])
     db.commit()
     return JSONResponse(content={"success": True}, status_code=201)
-
-
-@userRoute.api_route('/subscribe', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'])
-async def subscribe(request: Request):
-    """
-    Subscribe to a user.
-    订阅用户
-
-    """
-    user_id = request.session.get('user_id')
-    if not user_id or not request.session:
-        response = RedirectResponse(url='/api/auth/login', status_code=302)
-        response.delete_cookie('session')
-        return response
-    if not request.json():
-        return JSONResponse(content={'error': 'Invalid request'}, status_code=400)
-    data = await request.json()
