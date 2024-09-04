@@ -1,3 +1,5 @@
+import datetime
+import json
 import logging
 from json import JSONDecodeError
 from typing import Optional
@@ -9,6 +11,7 @@ from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from _redis import get_key, set_key
 from _utils import _getRandomUserAgent, generate_vv_detail as gen_vv
 
 trendingRoute = APIRouter(prefix='/api/trending', tags=['Trending'])
@@ -121,12 +124,20 @@ async def fetch_trending_data_v2(request: Request, typeID: Optional[int] = None)
         logging.error(f"typeID: {typeID}, hint:typeID not in [1,2,3,4]")
         return JSONResponse(status_code=400, content={
             'error': 'Invalid typeID parameter, must be one of: 1 --> 电影, 2 --> 电视剧（连续剧）, 3 --> 综艺, 4 --> 动漫'})
-    url = await gen_url_v2(typeID, amount)
-    logging.info(f"Fetching trending data from: {url}")
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers={'User-Agent': _getRandomUserAgent()}, timeout=30)
-            data = response.json()
-            return JSONResponse(status_code=200, content=data)
-    except httpx.RequestError as e:
-        return JSONResponse(status_code=500, content={'error': f"An error occurred: {e}"})
+    redis_key = f"trending_v2_cache_{datetime.datetime.now().strftime('%Y-%m-%d')}_{typeID}_{amount}"
+    if await get_key(redis_key):
+        logging.info(f"Hit cache for key: {redis_key}")
+        data = await get_key(redis_key)
+        data = json.loads(data)
+        return JSONResponse(status_code=200, content=data)
+    else:
+        url = await gen_url_v2(typeID, amount)
+        logging.info(f"Fetching trending data from: {url}")
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, headers={'User-Agent': _getRandomUserAgent()}, timeout=30)
+                data = json.dumps(response.json())
+                await set_key(redis_key, data, 60 * 60 * 24)
+                return JSONResponse(status_code=200, content=json.loads(data))
+        except httpx.RequestError as e:
+            return JSONResponse(status_code=500, content={'error': f"An error occurred: {e}"})

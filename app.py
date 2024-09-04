@@ -40,6 +40,8 @@ async def lifespan(_: FastAPI):
     test = await redis_connection.ping()
     if test:
         logging.info("Redis connection established")
+    logging.info("cleaning up redis db")
+    await redis_connection.flushdb()
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
         logging.info("MySQL connection established")
