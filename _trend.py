@@ -110,6 +110,10 @@ async def fetch_trending_data_v2(request: Request, typeID: Optional[int] = None)
     4: 动漫
     :parameter amount: The number of items to fetch. --> int default: 10
     """
+    try:
+        amount = request.query_params['amount']
+    except KeyError as e:
+        amount = 10
     if typeID is None:
         logging.info(f"typeID: {typeID}, hint:typeID is None, step fetch_trending_data")
         return JSONResponse(status_code=400, content={'error': 'Missing required parameters: typeID'})
@@ -117,7 +121,7 @@ async def fetch_trending_data_v2(request: Request, typeID: Optional[int] = None)
         logging.error(f"typeID: {typeID}, hint:typeID not in [1,2,3,4]")
         return JSONResponse(status_code=400, content={
             'error': 'Invalid typeID parameter, must be one of: 1 --> 电影, 2 --> 电视剧（连续剧）, 3 --> 综艺, 4 --> 动漫'})
-    url = await gen_url_v2(typeID, amount=10)
+    url = await gen_url_v2(typeID, amount)
     logging.info(f"Fetching trending data from: {url}")
     try:
         async with httpx.AsyncClient() as client:
@@ -125,5 +129,4 @@ async def fetch_trending_data_v2(request: Request, typeID: Optional[int] = None)
             data = response.json()
             return JSONResponse(status_code=200, content=data)
     except httpx.RequestError as e:
-        print(data)
-        return
+        return JSONResponse(status_code=500, content={'error': f"An error occurred: {e}"})

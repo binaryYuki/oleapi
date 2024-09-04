@@ -148,10 +148,10 @@ async def init_db():
             await conn.run_sync(Base.metadata.create_all, checkfirst=False)
         except OperationalError as e:
             logging.info("重建数据库表")
-            # 删除所有表
-            await conn.run_sync(Base.metadata.drop_all)
-            # 创建所有表
-            await conn.run_sync(Base.metadata.create_all)
+            # # 删除所有表
+            # await conn.run_sync(Base.metadata.drop_all)
+            # # 创建所有表
+            # await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             raise RuntimeError(f"Database initialization failed: {str(e)}")
 
