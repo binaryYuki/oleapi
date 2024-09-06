@@ -29,7 +29,7 @@ from _user import userRoute
 
 load_dotenv()
 
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.ERROR)
 
 
 @asynccontextmanager
