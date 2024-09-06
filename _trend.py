@@ -43,7 +43,6 @@ async def gen_url_v2(typeID: int, amount=10):
     url = f"https://api.olelive.com/v1/pub/index/vod/hot/{typeID}/0/{amount}?_vv={vv}"
     return url
 
-
 @trendingRoute.post('/{period}/trend')
 async def fetch_trending_data(request: Request, period: Optional[str] = 'day'):
     """
