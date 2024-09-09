@@ -1,22 +1,32 @@
 from typing import Dict, Optional
-
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi_limiter.depends import RateLimiter
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from starlette.requests import Request
 
-from _db import SessionLocal, User
+from _db import SessionLocal, User, UserWatchHistory # import UserWatchHistory table
 
-app = FastAPI()
+# Create an APIRouter instance for user watch history related endpoints
+watch_history_router = APIRouter(prefix='/api/user', tags=['User', 'Watch History'])
 
 # OpenIdConnect configuration
+app = FastAPI()
+app.include_router(watch_history_router)
 
 # Router for user-related endpoints
 userRoute = APIRouter(prefix='/api/user', tags=['User', 'User Management', 'oauth2'])
 
+
 dbSession = SessionLocal()
 
+# 获取数据库会话
+def get_db():
+    try:
+        yield dbSession
+    finally:
+        dbSession.close()
 
 def get_session_info(request: Request) -> Optional[Dict]:
     """
@@ -88,3 +98,48 @@ async def update_user_profile(request: Request):
             setattr(user, key, data[key])
     db.commit()
     return JSONResponse(content={"success": True}, status_code=201)
+
+
+@watch_history_router.post('/record_watch_history', dependencies = [Depends(RateLimiter(times = 5, seconds = 60))])
+async def record_watch_history(request: Request, db: Session = Depends(get_db)):
+    """
+    记录用户观看历史的接口。
+    接收用户 ID 和视频 ID, 将其存储在 UserWatchHistory 表中。
+    """
+    session_info = get_session_info(request)
+    if not session_info:
+        return JSONResponse(content={'error': 'Not logged in'}, status_code=401)
+
+    data = await request.json()
+    user_id = session_info['user_id']
+    video_id = data.get('video_id')
+
+    if not video_id:
+        raise HTTPException(status_code=400, detail="Video ID is required")
+
+    new_history = UserWatchHistory(user_id=user_id, vod_id=video_id)
+
+    db.add(new_history)
+    db.commit()
+    return JSONResponse(content={"message": "Watch history recorded"}, status_code=201)
+
+
+@watch_history_router.get('/get_watch_history', dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+async def get_watch_history(request: Request, db: Session = Depends(get_db)):
+    """
+    获取用户观看历史的接口。
+    根据用户 ID 查询 UserWatchHistory 表，并返回该用户的观看记录。
+    """
+    session_info = get_session_info(request)
+    if not session_info:
+        return JSONResponse(content={'error': 'Not logged in'}, status_code=401)
+
+    user_id = session_info['user_id']
+
+    history_records = db.query(UserWatchHistory).filter_by(user_id=user_id).all()
+
+    if not history_records:
+        return JSONResponse(content={"message": "No watch history found"}, status_code=404)
+
+    history_list = [record.to_dict() for record in history_records]
+    return JSONResponse(content={"watch_history": history_list}, status_code=200)
