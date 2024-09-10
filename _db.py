@@ -248,7 +248,7 @@ class UserWatchHistory(Base):
     watch_at = Column(DateTime, default = datetime.datetime.now(datetime.timezone.utc))
     watch_duration = Column(Float, default = 0.0)
 
-    user = relationship("User", back_populates = "watch_hisotry")
+    user = relationship("User", back_populates = "wathc_history")
     vod_info = relationship("VodInfo", back_populates = "watched")
 
     def to_dict(self):

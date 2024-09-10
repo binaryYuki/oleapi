@@ -101,31 +101,33 @@ async def update_user_profile(request: Request):
 
 
 @watch_history_router.post('/record_watch_history', dependencies = [Depends(RateLimiter(times = 5, seconds = 60))])
-async def record_watch_history(request: Request, db: Session = Depends(get_db)):
+async def record_watch_history(request: Request):
     """
-    记录用户观看历史的接口。
-    接收用户 ID 和视频 ID, 将其存储在 UserWatchHistory 表中。
+    记录用户观看历史的接口。    接收用户 ID 和视频 ID, 将其存储在 UserWatchHistory 表中。
     """
     session_info = get_session_info(request)
     if not session_info:
         return JSONResponse(content={'error': 'Not logged in'}, status_code=401)
+    
+    db: Session = SessionLocal()
+    try: 
+        data = await request.json()
+        user_id = session_info['user_id']
+        video_id = data.get('video_id')
 
-    data = await request.json()
-    user_id = session_info['user_id']
-    video_id = data.get('video_id')
+        if not video_id:
+            raise HTTPException(status_code=400, detail="Video ID is required")
 
-    if not video_id:
-        raise HTTPException(status_code=400, detail="Video ID is required")
+        new_history = UserWatchHistory(user_id=user_id, vod_id=video_id)
 
-    new_history = UserWatchHistory(user_id=user_id, vod_id=video_id)
-
-    db.add(new_history)
-    db.commit()
-    return JSONResponse(content={"message": "Watch history recorded"}, status_code=201)
-
+        db.add(new_history)
+        db.commit()
+        return JSONResponse(content={"message": "Watch history recorded"}, status_code=201)
+    finally:
+        db.close()
 
 @watch_history_router.get('/get_watch_history', dependencies=[Depends(RateLimiter(times=5, seconds=60))])
-async def get_watch_history(request: Request, db: Session = Depends(get_db)):
+async def get_watch_history(request: Request):
     """
     获取用户观看历史的接口。
     根据用户 ID 查询 UserWatchHistory 表，并返回该用户的观看记录。
@@ -134,12 +136,16 @@ async def get_watch_history(request: Request, db: Session = Depends(get_db)):
     if not session_info:
         return JSONResponse(content={'error': 'Not logged in'}, status_code=401)
 
-    user_id = session_info['user_id']
+    db: Session = SessionLocal()
+    try: 
+        user_id = session_info['user_id']
 
-    history_records = db.query(UserWatchHistory).filter_by(user_id=user_id).all()
+        history_records = db.query(UserWatchHistory).filter_by(user_id=user_id).all()
 
-    if not history_records:
-        return JSONResponse(content={"message": "No watch history found"}, status_code=404)
+        if not history_records:
+            return JSONResponse(content={"message": "No watch history found"}, status_code=404)
 
-    history_list = [record.to_dict() for record in history_records]
-    return JSONResponse(content={"watch_history": history_list}, status_code=200)
+        history_list = [record.to_dict() for record in history_records]
+        return JSONResponse(content={"watch_history": history_list}, status_code=200)
+    finally:
+        db.close()
