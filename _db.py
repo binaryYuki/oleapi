@@ -51,7 +51,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
 
     # 将用户与收藏功能和观看影视记录关系绑定
-    favorites = relationship("UserFavorite", back_populates = "user") 
+    favorites = relationship("UserFavorite", back_populates="user")
     watch_history = relationship("UserWatchHistory", back_populates = "user")
 
     def to_dict(self):
@@ -223,7 +223,7 @@ class UserFavorite(Base):
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey('users.user_id'))
-    vod_id = Column(String(32), ForeignKey(vod_info.vod_id))
+    vod_id = Column(String(32), ForeignKey(VodInfo.vod_id))
     favorite_at = Column(DateTime, default = datetime.datetime.now(datetime.timezone.utc))
 
     user = relationship("User", back_populates = "favorites")
@@ -235,7 +235,7 @@ class UserFavorite(Base):
            "vod_id": self.vod_id,
            "favorite_at": self.favorite_at
         }
-    
+
 
 class UserWatchHistory(Base):
     __tablename__ = "user_watch_history"
@@ -257,6 +257,3 @@ class UserWatchHistory(Base):
            "watch_at": self.watch_at.isoformat(),
            "watch_duration": self.watch_duration
         }
-    
-
-
