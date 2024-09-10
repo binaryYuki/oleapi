@@ -240,7 +240,6 @@ class UserFavorite(Base):
 class UserWatchHistory(Base):
     __tablename__ = "user_watch_history"
 
-    __tablename__ = "user_favorites"
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey('users.user_id'), nullable = False)
