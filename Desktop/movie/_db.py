@@ -51,8 +51,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
 
     # 将用户与收藏功能和观看影视记录关系绑定
-    favorites = relationship("UserFavorite", back_populates = "user") 
-    watch_history = relationship("UserWatchHistory", back_populates = "user")
+    favorites = relationship("UserFavorite", back_populates="user")
+    watch_history = relationship("UserWatchHistory", back_populates="user")
 
     def to_dict(self):
         return {
@@ -109,18 +109,26 @@ class VodInfo(Base):
     vod_version = Column(String(16), default="未知")
     vod_score = Column(Float(), default=0.0)
 
-    #添加于收藏和观看历史的关系
-    favorited = relationship("UserFavorite", back_populates = "vod_info")
-    watched = relationship("UserWatchHistory", back_populates = "vod_info")
+    # 添加于收藏和观看历史的关系
+    favorited = relationship("UserFavorite", back_populates="vod_info")
+    watched = relationship("UserWatchHistory", back_populates="vod_info")
 
     # 添加 relationship，反向关系到 VodSub
     subs = relationship("VodSub", back_populates="vod_info")
 
     def to_dict(self):
         return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
-            if column.name != 'subs'  # Exclude the 'subs' relationship
+            "vod_id": self.vod_id,
+            "vod_name": self.vod_name,
+            "vod_typeId": self.vod_typeId,
+            "vod_typeId1": self.vod_typeId1,
+            "vod_remarks": self.vod_remarks,
+            "vod_is_vip": self.vod_is_vip,
+            "vod_episodes": self.vod_episodes,
+            "vod_urls": self.vod_urls,
+            "vod_new": self.vod_new,
+            "vod_version": self.vod_version,
+            "vod_score": self.vod_score
         }
 
 
@@ -129,6 +137,7 @@ class PushLog(Base):
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
     push_id = Column(String(32), index=True, unique=True)
+    push_by = Column(Integer())
     push_receiver = Column(String(36), ForeignKey('users.user_id'))
     push_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
     push_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
@@ -154,13 +163,14 @@ async def init_db():
     async with engine.begin() as conn:
         try:
             await conn.run_sync(Base.metadata.create_all, checkfirst=False)
-        except OperationalError as e:
+        except OperationalError:
             logging.info("重建数据库表")
             # # 删除所有表
             # await conn.run_sync(Base.metadata.drop_all)
             # # 创建所有表
             # await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
+            logging.error(f"Database initialization failed: {str(e)}")
             raise RuntimeError(f"Database initialization failed: {str(e)}")
 
 
@@ -182,6 +192,7 @@ async def cache_vod_data(data):
         if vod_data["type"] == "vod":
             for item in vod_data["list"]:
                 # 查找是否存在相同的 vod_id
+                # noinspection PyTypeChecker
                 stmt = select(VodInfo).where(VodInfo.vod_id == str(item["id"]))
                 result = await db.execute(stmt)
                 db_vod = result.scalar_one_or_none()
@@ -223,40 +234,36 @@ class UserFavorite(Base):
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey('users.user_id'))
-    vod_id = Column(String(32), ForeignKey(vod_info.vod_id))
-    favorite_at = Column(DateTime, default = datetime.datetime.now(datetime.timezone.utc))
+    vod_id = Column(String(32), ForeignKey(VodInfo.vod_id))
+    favorite_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
 
-    user = relationship("User", back_populates = "favorites")
-    vod_info = relationship("VodInfo", back_populates = "favorited")
+    user = relationship("User", back_populates="favorites")
+    vod_info = relationship("VodInfo", back_populates="favorited")
 
     def to_dict(self):
         return {
-           "user_id": self.user_id,
-           "vod_id": self.vod_id,
-           "favorite_at": self.favorite_at
+            "user_id": self.user_id,
+            "vod_id": self.vod_id,
+            "favorite_at": self.favorite_at
         }
-    
+
 
 class UserWatchHistory(Base):
     __tablename__ = "user_watch_history"
 
-
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True)
-    user_id = Column(String(36), ForeignKey('users.user_id'), nullable = False)
-    vod_id = Column(String(32), ForeignKey('vod_info.vod_id'),nullable = False )
-    watch_at = Column(DateTime, default = datetime.datetime.now(datetime.timezone.utc))
-    watch_duration = Column(Float, default = 0.0)
+    user_id = Column(String(36), ForeignKey('users.user_id'))
+    vod_id = Column(String(32), ForeignKey(VodInfo.vod_id))
+    watch_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    watch_duration = Column(Float, default=0.0)
 
-    user = relationship("User", back_populates = "wathc_history")
-    vod_info = relationship("VodInfo", back_populates = "watched")
+    user = relationship("User", back_populates="watch_hisotry")
+    vod_info = relationship("VodInfo", back_populates="watched")
 
     def to_dict(self):
         return {
-           "user_id": self.user_id,
-           "vod_id": self.vod_id,
-           "watch_at": self.watch_at.isoformat(),
-           "watch_duration": self.watch_duration
+            "user_id": self.user_id,
+            "vod_id": self.vod_id,
+            "watch_at": self.watch_at,
+            "watch_duration": self.watch_duration
         }
-    
-
-
