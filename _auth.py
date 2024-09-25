@@ -91,7 +91,6 @@ async def store_webhook_data(data: dict):
             await session.close()
 
 
-
 @authRoute.api_route('/hook', methods=['POST', 'PUT'])
 async def logtoEventHandler(request: Request, background_tasks: BackgroundTasks):
     try:
