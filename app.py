@@ -1,3 +1,4 @@
+import binascii
 import json
 import logging
 import os
@@ -5,7 +6,7 @@ import random
 import subprocess
 from contextlib import asynccontextmanager
 
-import binascii
+import httpx
 import redis.asyncio as redis
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
@@ -15,6 +16,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
+from fastapi_utils.tasks import repeat_every
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
@@ -32,6 +34,16 @@ load_dotenv()
 logging.getLogger().setLevel(logging.ERROR)
 
 
+@repeat_every(seconds=10)
+async def clean_up():
+    async with httpx.AsyncClient() as client:
+        f = await client.get("https://push.tzpro.xyz/healthzzzz")
+        if f:
+            logging.info("Clean up success")
+        else:
+            logging.error("Clean up failed")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     redis_connection = redis.from_url(
@@ -46,6 +58,7 @@ async def lifespan(_: FastAPI):
         await init_db()
         logging.info("MySQL connection established")
     await init_crypto()
+    await clean_up()
     yield
     await FastAPILimiter.close()
     await redis_client.connection_pool.disconnect()
@@ -122,7 +135,7 @@ if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
 app.add_middleware(SessionMiddleware, secret_key=secret_key,
-                       session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
+                   session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 if os.getenv("DEBUG", "false").lower() == "false":

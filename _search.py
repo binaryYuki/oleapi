@@ -1,14 +1,16 @@
+import datetime
 import logging
 import urllib.parse
 
 import httpx
-from fastapi import Depends
+from fastapi import BackgroundTasks, Depends
 from fastapi.routing import APIRouter
 from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from _db import cache_vod_data
+from _redis import get_key as redis_get_key, set_key as redis_set_key
 from _utils import _getRandomUserAgent, generate_vv_detail
 
 searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
@@ -23,7 +25,7 @@ async def search_api(keyword, page=1, size=4):
     搜索 API
     :param keyword:  搜索关键词
     :param page:  页码
-    :param size:  每页数量
+    :param size:  每页数量x`
     :return:  返回搜索结果
     """
     vv = await generate_vv_detail()
@@ -75,7 +77,7 @@ def url_encode(keyword):
 
 @searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=5, seconds=1))], methods=['POST'],
                         name='search')
-async def search(request: Request):
+async def search(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
     keyword, page, size = data.get('keyword'), data.get('page'), data.get('size')
     if keyword == '' or keyword == 'your keyword':
@@ -99,8 +101,12 @@ async def keyword(request: Request):
     keyword = data.get('keyword')
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
+    redis_key = f"keyword_{datetime.datetime.now().strftime('%Y-%m-%d')}_{keyword}"
+    if redis_get_key(redis_key):
+        return JSONResponse(redis_get_key(redis_key))
     try:
         result = await link_keywords(keyword)
+        await redis_set_key(redis_key, result, ex=86400)  # 缓存一天
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=501)
     return JSONResponse(result)

@@ -2,9 +2,11 @@ import datetime
 import logging
 import os
 from enum import Enum as PyEnum
+from uuid import uuid4
 
 import dotenv
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, select, text
+from fastapi.utils import generate_unique_id
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -22,7 +24,7 @@ if DATABASE_URL.startswith("mysql://"):
 
 # Set up SQLAlchemy
 Base = declarative_base()  # 这里是一个基类，所有的 ORM 类都要继承这个类
-engine = create_async_engine(DATABASE_URL, echo=False)  # 创建一个引擎
+engine = create_async_engine(DATABASE_URL, echo=True)  # 创建一个引擎
 # noinspection PyTypeChecker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)  # 异步会话类
 
@@ -35,34 +37,23 @@ class SubChannelEnum(PyEnum):
 class User(Base):
     __tablename__ = "users"
 
-    user_id = Column(String(36), primary_key=True, index=True)
-    username = Column(String(32), unique=True, index=True)
-    email = Column(String(128), unique=True)
-    email_verified = Column(Boolean, default=False)
+    userId = Column(String(36), primary_key=True, index=True, default=generate_unique_id)
+    id = Column(String(12), index=True, unique=True)
+    username = Column(String(32), index=True, unique=True)
+    primaryEmail = Column(String(64), index=True, unique=True)
+    primaryPhone = Column(String(16), index=True, unique=True)
+    name = Column(String(32), index=True)
     avatar = Column(String(256), default="")
-    is_active = Column(Boolean, default=True)
-    oidc_sub = Column(String(64), default="")
-    sub_limit = Column(Integer(), default=3)
-    bark_token = Column(String(64), default="")
-    bark_server = Column(String(64), default="")
-    push_logs = relationship("PushLog", back_populates="user")  # 修正: 使用 relationship 并 back_populates
-    sub = relationship("VodSub", back_populates="user")  # 修正: 使用 relationship 并 back_populates
-    last_login = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
-    created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
+    customData = Column(String(256), default='{}')
+    identities = Column(String(256), default='{}')
+    profile = Column(String(256), default="")
+    applicationId = Column(String(21), default="")
+    lastSignInAt = Column(Integer(), default=datetime.datetime.now().timestamp())
+    createdAt = Column(Integer(), default=datetime.datetime.now().timestamp())
+    updatedAt = Column(Integer(), default=datetime.datetime.now().timestamp())
 
-    def to_dict(self):
-        return {
-            "user_id": self.user_id,
-            "avatar": self.avatar,
-            "username": self.username,
-            "email_verified": self.email_verified,
-            "is_active": self.is_active,
-            "last_login": self.last_login.strftime("%Y-%m-%d %H:%M:%S"),
-            "sub_limit": self.sub_limit
-        }
-
-    def check_token(self, token):
-        return self.bark_token == token
+    vod_subs = relationship("VodSub", back_populates="user")
+    push_logs = relationship("PushLog", back_populates="user")  # 增加 PushLog 关系
 
 
 class VodSub(Base):
@@ -70,14 +61,15 @@ class VodSub(Base):
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True)
     sub_id = Column(String(32), index=True, unique=True)
-    sub_by = Column(String(36), ForeignKey('users.user_id'))
+    sub_by = Column(String(36), ForeignKey('users.id'))
     sub_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
     sub_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
+    sub_needSync = Column(Boolean, default=False)  # 取搜索是的year 判断是否需要同步
 
     # 外键关联到 VodInfo 表
     vod_info_id = Column(Integer, ForeignKey('vod_info.id'))
-    vod_info = relationship("VodInfo", back_populates="subs")  # 使用 back_populates 创建双向关系
-    user = relationship("User", back_populates="sub")
+    vod_info = relationship("VodInfo", back_populates="subs")
+    user = relationship("User", back_populates="vod_subs")
 
     def to_dict(self):
         return {
@@ -104,11 +96,13 @@ class VodInfo(Base):
     vod_new = Column(Boolean, default=False)
     vod_version = Column(String(16), default="未知")
     vod_score = Column(Float(), default=0.0)
+    vod_year = Column(Integer(), default=0)
 
     # 添加 relationship，反向关系到 VodSub
     subs = relationship("VodSub", back_populates="vod_info")
 
     def to_dict(self):
+        # noinspection PyTypeChecker
         return {
             column.name: getattr(self, column.name)
             for column in self.__table__.columns
@@ -121,9 +115,10 @@ class PushLog(Base):
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
     push_id = Column(String(32), index=True, unique=True)
-    push_receiver = Column(String(36), ForeignKey('users.user_id'))
+    push_receiver = Column(String(36), ForeignKey('users.id'))
     push_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
     push_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
+    push_by = Column(String(36))
     push_result = Column(Boolean, default=False)
     push_message = Column(String(256), default="")
     push_server = Column(String(32), default="")
@@ -147,11 +142,11 @@ async def init_db():
         try:
             await conn.run_sync(Base.metadata.create_all, checkfirst=False)
         except OperationalError as e:
-            logging.info("重建数据库表")
+            logging.info("重建数据库表, 原因: %s", str(e))
             # # 删除所有表
-            # await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.drop_all)
             # # 创建所有表
-            # await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(Base.metadata.create_all)
         except Exception as e:
             raise RuntimeError(f"Database initialization failed: {str(e)}")
 
@@ -174,6 +169,7 @@ async def cache_vod_data(data):
         if vod_data["type"] == "vod":
             for item in vod_data["list"]:
                 # 查找是否存在相同的 vod_id
+                # noinspection PyTypeChecker
                 stmt = select(VodInfo).where(VodInfo.vod_id == str(item["id"]))
                 result = await db.execute(stmt)
                 db_vod = result.scalar_one_or_none()
@@ -189,6 +185,7 @@ async def cache_vod_data(data):
                     db_vod.vod_new = item.get("new", False)
                     db_vod.vod_version = item.get("version", "未知")
                     db_vod.vod_score = item.get("score", 0.0)
+                    db_vod.vod_year = item.get("year", 0)
                 else:
                     # 插入新数据
                     new_vod = VodInfo(
@@ -202,9 +199,53 @@ async def cache_vod_data(data):
                         vod_urls=item.get("pic", ""),
                         vod_new=item.get("new", False),
                         vod_version=item.get("version", "未知"),
-                        vod_score=item.get("score", 0.0)
+                        vod_score=item.get("score", 0.0),
+                        vod_year=item.get("year", 0)
                     )
                     db.add(new_vod)
 
                 await db.commit()
     await db.close()
+
+
+class requestUpdate(Base):
+    __tablename__ = "request_update"
+
+    id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
+    request_id = Column(String(32), index=True, unique=True, default=uuid4().hex)
+    request_by = Column(String(36), ForeignKey('users.id'), default="Anonymous")
+    request_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
+    request_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
+    request_result = Column(Boolean, default=False)
+    request_vod = Column(String(256), default="")
+    request_vod_channel = Column(String(32), default="", nullable=True)
+
+    def to_dict(self):
+        # search username by userId
+        return {
+            "request_id": self.request_id,
+            "request_by": self.request_by,
+            "request_channel": self.request_channel,
+            "request_at": self.request_at,
+            "request_result": self.request_result,
+            "request_vod": self.request_vod,
+            "request_vod_channel": self.request_vod_channel
+        }
+
+
+class WebHookStorage(Base):
+    __tablename__ = 'webhook_storage'
+
+    id = Column(String(32), primary_key=True, index=True, default=uuid4().hex)
+    hook_id = Column(String(32))
+    event = Column(String(24))
+    created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
+    session_id = Column(String(32))
+    user_agent = Column(String(256))
+    ip = Column(String(128))  # ipv6 地址最长为 128 位
+    user_ip = Column(String(128))
+
+    application = Text()
+
+    def __repr__(self):
+        return f"<WebHookStorage(hook_id='{self.hook_id}', event='{self.event}')>"
