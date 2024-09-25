@@ -102,7 +102,7 @@ async def keyword(request: Request):
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
     redis_key = f"keyword_{datetime.datetime.now().strftime('%Y-%m-%d')}_{keyword}"
-    if redis_get_key(redis_key):
+    if await redis_get_key(redis_key):
         return JSONResponse(redis_get_key(redis_key))
     try:
         result = await link_keywords(keyword)
