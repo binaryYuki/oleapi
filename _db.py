@@ -5,7 +5,6 @@ from enum import Enum as PyEnum
 from uuid import uuid4
 
 import dotenv
-from fastapi.utils import generate_unique_id
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -37,12 +36,12 @@ class SubChannelEnum(PyEnum):
 class User(Base):
     __tablename__ = "users"
 
-    userId = Column(String(36), primary_key=True, index=True, default=generate_unique_id)
+    userId = Column(String(36), primary_key=True, index=True, default=uuid4().hex)
     id = Column(String(12), index=True, unique=True)
     username = Column(String(32), index=True, unique=True)
     primaryEmail = Column(String(64), index=True, unique=True)
-    primaryPhone = Column(String(16), index=True, unique=True)
-    name = Column(String(32), index=True)
+    primaryPhone = Column(String(16), default="")
+    name = Column(String(32), default="")
     avatar = Column(String(256), default="")
     customData = Column(String(256), default='{}')
     identities = Column(String(256), default='{}')
