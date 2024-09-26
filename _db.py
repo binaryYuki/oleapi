@@ -44,7 +44,7 @@ class User(Base):
     name = Column(String(32), default="")
     avatar = Column(String(256), default="")
     customData = Column(String(256), default='{}')
-    identities = Column(String(256), default='{}')
+    identities = Column(Text(), default='[]')
     profile = Column(String(256), default="")
     applicationId = Column(String(21), default="")
     lastSignInAt = Column(Integer(), default=datetime.datetime.now().timestamp())
@@ -240,9 +240,10 @@ class WebHookStorage(Base):
     event = Column(String(24))
     created_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))
     session_id = Column(String(32))
-    user_agent = Column(String(256))
-    ip = Column(String(128))  # ipv6 地址最长为 128 位
-    user_ip = Column(String(128))
+    user_agent = Column(String(256), default="")
+    user_ip = Column(String(128), default="")
+    user_id = Column(String(32), default="")
+    sessionId = Column(String(32), default="")
 
     application = Text()
 

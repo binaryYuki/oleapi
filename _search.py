@@ -66,7 +66,7 @@ async def link_keywords(keyword):
     async with httpx.AsyncClient() as client:
         response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
-        return JSONResponse(content={"error": "Upstream Error"}, status_code=501)
+        return JSONResponse(content={"error": "Upstream Error"}, status_code=507)
     return response.json()
 
 
@@ -102,14 +102,17 @@ async def keyword(request: Request):
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
     redis_key = f"keyword_{datetime.datetime.now().strftime('%Y-%m-%d')}_{keyword}"
-    if await redis_get_key(redis_key):
-        return JSONResponse(redis_get_key(redis_key))
     try:
-        result = await link_keywords(keyword)
-        await redis_set_key(redis_key, result, ex=86400)  # 缓存一天
+        if await redis_get_key(redis_key):
+            data = await redis_get_key(redis_key)
+        else:
+            data = await link_keywords(keyword)
+            await redis_set_key(redis_key, data, ex=86400)  # 缓存一天
     except Exception as e:
+        logging.error("Error: " + str(e), stack_info=True)
+        logging.info(f"Using cache data, result: {data}")
         return JSONResponse({"error": str(e)}, status_code=501)
-    return JSONResponse(result)
+    return JSONResponse(data)
 
 
 @searchRouter.api_route('/detail', methods=['POST'], name='detail',

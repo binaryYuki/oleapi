@@ -54,8 +54,8 @@ async def store_webhook_data(data: dict):
                 event=data["event"],
                 session_id=data["sessionId"],
                 user_agent=data["userAgent"],
-                ip=data["ip"],
                 user_ip=data["userIp"],
+                sessionId=data["sessionId"],
             )
             data = data['user']
             user = User(

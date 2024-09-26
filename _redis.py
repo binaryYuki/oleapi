@@ -1,7 +1,9 @@
+import json
 import os
-from redis import asyncio as redis
 from typing import Optional
+
 import dotenv
+from redis import asyncio as redis
 
 dotenv.load_dotenv()
 
@@ -36,6 +38,8 @@ async def set_key(key: str, value: str, ex: Optional[int] = None) -> bool:
     Set a value in Redis with an optional expiration time (in seconds).
     """
     try:
+        if type(value) == dict:
+            value = json.dumps(value)
         await redis_client.set(name=key, value=value, ex=ex)
         return True
     except redis.RedisError as e:
@@ -51,7 +55,7 @@ async def get_key(key: str) -> Optional[str]:
     try:
         value = await redis_client.get(name=key)
         if value is not None:
-            return value.decode()
+            return json.loads(value.decode())
         else:
             return value
     except redis.RedisError as e:
