@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import urllib.parse
 
@@ -10,7 +11,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from _db import cache_vod_data
-from _redis import get_key as redis_get_key, set_key as redis_set_key
+from _redis import get_key as redis_get_key, key_exists as redis_key_exists, set_key as redis_set_key
 from _utils import _getRandomUserAgent, generate_vv_detail
 
 searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
@@ -32,7 +33,6 @@ async def search_api(keyword, page=1, size=4):
     # 关键词是个中文字符串，需要进行 URL 编码
     keyword = url_encode(keyword)
     base_url = f"https://api.olelive.com/v1/pub/index/search/{keyword}/vod/0/{page}/{size}?_vv={str(vv)}"
-    logging.info(base_url)
     headers = {
         'User-Agent': _getRandomUserAgent(),
         'Referer': 'https://www.olevod.com/',
@@ -41,7 +41,8 @@ async def search_api(keyword, page=1, size=4):
     async with httpx.AsyncClient() as client:
         response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
-        raise ConnectionError("Upstream Error")
+        logging.error(f"Upstream Error, base_url: {base_url}, headers: {headers}")
+        raise Exception("Upstream Error")
     return response.json()
 
 
@@ -84,14 +85,26 @@ async def search(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse({}, status_code=200)
     page, size = int(page), int(size)
     try:
+        id = f"search_{keyword}_{page}_{size}_{datetime.datetime.now().strftime('%Y-%m-%d')}"
+        if await redis_key_exists(id):
+            data = json.loads(await redis_get_key(id))
+            data["msg"] = "cached"
+            return JSONResponse(data)
+    except Exception as e:
+        pass
+    try:
         result = await search_api(keyword, page, size)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=501)
+        return JSONResponse({"error": str(e)}, status_code=503)
     if result and result['data']['total'] == 0:
-        return JSONResponse({"error": "No result"}, status_code=200)
+        return JSONResponse({"error": "No result Found"}, status_code=200)
     if result:
         await cache_vod_data(result)
-    return JSONResponse(result)
+        await redis_set_key(id, result, ex=86400)  # 缓存一天
+    try:
+        return JSONResponse(result)
+    except:
+        return JSONResponse(json.dumps(result), status_code=200)
 
 
 @searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'],
@@ -110,7 +123,6 @@ async def keyword(request: Request):
             await redis_set_key(redis_key, data, ex=86400)  # 缓存一天
     except Exception as e:
         logging.error("Error: " + str(e), stack_info=True)
-        logging.info(f"Using cache data, result: {data}")
         return JSONResponse({"error": str(e)}, status_code=501)
     return JSONResponse(data)
 

@@ -18,7 +18,6 @@ else:
     # 在集群环境下，使用 redis:// 连接字符串 并且 tcp()包裹
     REDIS_CONN = f"redis://default:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
-
 # Initialize Redis client
 redis_client = redis.from_url(REDIS_CONN)
 
@@ -52,12 +51,13 @@ async def get_key(key: str) -> Optional[str]:
     """
     Get a value from Redis by key. Returns None if the key does not exist.
     """
+    # 返回 string
     try:
-        value = await redis_client.get(name=key)
-        if value is not None:
-            return json.loads(value.decode())
+        data = await redis_client.get(key)
+        if data:
+            return data.decode()
         else:
-            return value
+            return None
     except redis.RedisError as e:
         print(f"Error getting key from Redis: {e}")
         return None
@@ -82,7 +82,7 @@ async def key_exists(key: str) -> bool:
     Check if a key exists in Redis.
     """
     try:
-        return redis_client.exists(key) == 1
+        return await redis_client.exists(key) == 1
     except redis.RedisError as e:
         print(f"Error checking key in Redis: {e}")
         return False

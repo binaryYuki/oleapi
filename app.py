@@ -9,16 +9,14 @@ from contextlib import asynccontextmanager
 import httpx
 import redis.asyncio as redis
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
 from fastapi_utils.tasks import repeat_every
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
 from _auth import authRoute
@@ -94,13 +92,6 @@ async def index():
     """
 
     return HTMLResponse(content=html_content)
-
-
-@app.get('/getsession', dependencies=[Depends(RateLimiter(times=1, seconds=10))])
-async def get_session(request: Request):
-    if request.session == {}:
-        return JSONResponse(content={'session': 'None'}, status_code=401)
-    return JSONResponse(content={'session': request.session})
 
 
 @app.api_route('/healthz', methods=['GET'])
