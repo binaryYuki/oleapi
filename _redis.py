@@ -31,6 +31,27 @@ async def test_redis():
         return False
 
 
+async def get_keys_by_pattern(pattern: str) -> list:
+    """
+    Get a list of keys matching a pattern.
+    """
+    maxAttempts = 3
+    try:
+        keys = []
+        async for key in redis_client.scan_iter(match=pattern):
+            keys.append(key.decode())
+        return keys
+    except redis.ConnectionError as e:
+        if maxAttempts > 0:
+            data = await get_keys_by_pattern(pattern)
+            maxAttempts -= 1
+            return data
+        else:
+            print(f"Error getting keys by pattern from Redis: {e}")
+            return []
+
+
+
 # Set a key-value pair in Redis
 async def set_key(key: str, value: str, ex: Optional[int] = None) -> bool:
     """

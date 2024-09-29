@@ -12,6 +12,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
 dotenv.load_dotenv()
+logger = logging.getLogger(__name__)
 
 # === DATABASE Configuration ===
 DATABASE_URL = os.getenv("MYSQL_CONN_STRING")
@@ -30,6 +31,9 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, clas
 
 # 枚举类型定义
 class SubChannelEnum(PyEnum):
+    """
+    validator
+    """
     OLE_VOD = "ole_vod"
 
 
@@ -71,6 +75,10 @@ class VodSub(Base):
     user = relationship("User", back_populates="vod_subs")
 
     def to_dict(self):
+        """
+
+        :return:
+        """
         return {
             "sub_id": self.sub_id,
             "sub_by": self.sub_by,
@@ -101,6 +109,10 @@ class VodInfo(Base):
     subs = relationship("VodSub", back_populates="vod_info")
 
     def to_dict(self):
+        """
+
+        :return:
+        """
         # noinspection PyTypeChecker
         return {
             column.name: getattr(self, column.name)
@@ -110,11 +122,23 @@ class VodInfo(Base):
 
 
 class PushLog(Base):
+    """
+    推送日志
+    :param push_id: 推送 ID
+    :param push_receiver: 接收者 ID
+    :param push_channel: 推送渠道
+    :param push_at: 推送时间
+    :param push_by: 推送者系统明
+    :param push_result: 推送结果
+    :param push_message: 推送消息
+    :param push_server: 推送服务器
+    :param user: User 对象
+    """
     __tablename__ = "push_logs"
 
     id = Column(Integer(), primary_key=True, index=True, autoincrement=True, unique=True)
     push_id = Column(String(32), index=True, unique=True)
-    push_receiver = Column(String(36), ForeignKey('users.id'))
+    push_receiver = Column(String(36))
     push_channel = Column(String(32), default=SubChannelEnum.OLE_VOD.value)  # 将 Enum 映射为字符串
     push_at = Column(DateTime, default=datetime.datetime.now(datetime.timezone.utc))  # 使用 UTC 时间
     push_by = Column(String(36))
@@ -122,9 +146,14 @@ class PushLog(Base):
     push_message = Column(String(256), default="")
     push_server = Column(String(32), default="")
 
+    user_id = Column(String(36), ForeignKey('users.userId'))
     user = relationship("User", back_populates="push_logs")
 
     def to_dict(self):
+        """
+
+        :return:
+        """
         return {
             "push_id": self.push_id,
             "push_by": self.push_by,
@@ -163,6 +192,10 @@ async def test_db_connection():
 
 
 async def cache_vod_data(data):
+    """
+
+    :param data:
+    """
     db: SessionLocal = SessionLocal()
     for vod_data in data["data"]["data"]:
         if vod_data["type"] == "vod":
@@ -172,6 +205,9 @@ async def cache_vod_data(data):
                 stmt = select(VodInfo).where(VodInfo.vod_id == str(item["id"]))
                 result = await db.execute(stmt)
                 db_vod = result.scalar_one_or_none()
+                episode_list = item.get("episodes", [])
+                if episode_list:
+                    item["episodes"] = len(episode_list)
                 if db_vod:
                     # 更新现有数据
                     db_vod.vod_name = item["name"]
@@ -220,6 +256,10 @@ class requestUpdate(Base):
     request_vod_channel = Column(String(32), default="", nullable=True)
 
     def to_dict(self):
+        """
+
+        :return:
+        """
         # search username by userId
         return {
             "request_id": self.request_id,

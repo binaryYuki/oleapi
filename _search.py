@@ -38,6 +38,7 @@ async def search_api(keyword, page=1, size=4):
         'Referer': 'https://www.olevod.com/',
         'Origin': 'https://www.olevod.com/',
     }
+    logging.info(f"Search API: {base_url}")
     async with httpx.AsyncClient() as client:
         response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
@@ -118,13 +119,18 @@ async def keyword(request: Request):
     try:
         if await redis_get_key(redis_key):
             data = await redis_get_key(redis_key)
+            data = json.loads(data)
+            data["msg"] = "cached"
         else:
             data = await link_keywords(keyword)
-            await redis_set_key(redis_key, data, ex=86400)  # 缓存一天
+            await redis_set_key(redis_key, json.dumps(data), ex=86400)  # 缓存一天
     except Exception as e:
         logging.error("Error: " + str(e), stack_info=True)
         return JSONResponse({"error": str(e)}, status_code=501)
-    return JSONResponse(data)
+    try:
+        return JSONResponse(data)
+    except:
+        return JSONResponse(json.loads(data), status_code=200)
 
 
 @searchRouter.api_route('/detail', methods=['POST'], name='detail',

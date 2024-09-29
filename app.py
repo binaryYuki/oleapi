@@ -20,43 +20,51 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse
 
 from _auth import authRoute
+from _cronjobs import pushTaskExecQueue
 from _crypto import cryptoRouter, init_crypto
 from _db import init_db, test_db_connection
-from _redis import redis_client
+from _redis import redis_client, set_key as redis_set_key
 from _search import searchRouter
 from _trend import trendingRoute
 from _user import userRoute
 
 load_dotenv()
+loglevel = os.getenv("LOG_LEVEL", "ERROR")
+logging.basicConfig(level=logging.getLevelName(loglevel))
+logger = logging.getLogger(__name__)
 
-logging.getLogger().setLevel(logging.ERROR)
 
-
-@repeat_every(seconds=10)
-async def clean_up():
+@repeat_every(seconds=60 * 60, wait_first=True)
+async def testPushServer():
     async with httpx.AsyncClient() as client:
-        f = await client.get("https://push.tzpro.xyz/healthzzzz")
-        if f:
-            logging.info("Clean up success")
-        else:
-            logging.error("Clean up failed")
+        f = await client.get("https://push.tzpro.xyz/healthz")
+        if f.status_code == 200:
+            await redis_set_key("server_status", "running")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """
+    整个 FastAPI 生命周期的上下文管理器
+    :param _: FastAPI 实例
+    :return: None
+    :param _:
+    :return:
+    """
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     await FastAPILimiter.init(redis_connection)
     test = await redis_connection.ping()
     if test:
-        logging.info("Redis connection established")
-    logging.info("cleaning up redis db")
+        logger.info("Redis connection established")
+    logger.info("cleaning up redis db")
     await redis_connection.flushdb()
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
-        logging.info("MySQL connection established")
+        logger.info("MySQL connection established")
     await init_crypto()
-    await clean_up()
+    await testPushServer()
+    await pushTaskExecQueue()
     yield
     await FastAPILimiter.close()
     await redis_client.connection_pool.disconnect()
@@ -74,6 +82,10 @@ app.include_router(cryptoRouter)
 
 @app.get('/')
 async def index():
+    """
+    首页
+    :return:
+    """
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
         "version": "v1.0.0-" + version_suffix,
@@ -96,7 +108,10 @@ async def index():
 
 @app.api_route('/healthz', methods=['GET'])
 async def healthz():
-    # check redis connection
+    """
+    健康检查
+    :return:
+    """
     try:
         await redis_client.ping()
         redisStatus = True
@@ -120,16 +135,19 @@ async def healthz():
                                      "redis_hint": redisHint if not redisStatus else "",
                                      "mysql_hint": mysqlHint if not mysqlStatus else ""})
 
-
 secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
+# noinspection PyTypeChecker
 app.add_middleware(SessionMiddleware, secret_key=secret_key,
                    session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
+# noinspection PyTypeChecker
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
+# noinspection PyTypeChecker
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 if os.getenv("DEBUG", "false").lower() == "false":
+    # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
         allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
@@ -138,6 +156,7 @@ if os.getenv("DEBUG", "false").lower() == "false":
         allow_headers=['*']
     )
 else:
+    # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
         allow_origins=['*'],

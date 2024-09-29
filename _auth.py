@@ -1,6 +1,5 @@
 import datetime
 import json
-import logging
 from logging import getLogger
 
 import dotenv
@@ -10,7 +9,6 @@ from starlette.responses import JSONResponse
 
 from _db import SessionLocal, User, WebHookStorage
 
-logging.basicConfig(level=logging.INFO)
 logger = getLogger(__name__)
 
 dotenv.load_dotenv()
@@ -47,6 +45,9 @@ async def timeFrameVerifier(timeStamp: str):
 
 
 async def store_webhook_data(data: dict):
+    """
+    :param data:
+    """
     async with SessionLocal() as session:
         async with session.begin():
             webhook = WebHookStorage(
@@ -93,6 +94,12 @@ async def store_webhook_data(data: dict):
 
 @authRoute.api_route('/hook', methods=['POST', 'PUT'])
 async def logtoEventHandler(request: Request, background_tasks: BackgroundTasks):
+    """
+
+    :param request:
+    :param background_tasks:
+    :return:
+    """
     try:
         data = await request.json()
     except Exception as e:
