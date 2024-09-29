@@ -152,7 +152,7 @@ async def verifyJWTToken(request: Request):
     """
     验证 JWT Token
     :param request:
-    :return:
+    :return: JSONResponse
     """
     try:
         data = await request.json()
