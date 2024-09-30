@@ -70,14 +70,16 @@ async def link_keywords(keyword):
     if response.status_code != 200:
         return JSONResponse(content={"error": "Upstream Error"}, status_code=507)
     try:
-        words = response.json()["data"]["words"]
-        words = dict(set(words))
-        # 排序
-        words = dict(sorted(words.items(), key=lambda x: x[1], reverse=True))
-        response.json()["data"]["words"] = words
+        words = response.json()["data"][0]["words"]
+        words = [word for word in words if word != "" and word != keyword]
+        # 去重 以及 空字符串
+        words2 = list(set(words))
+        words3 = list(sorted(words2, key=lambda x: len(x)))
+        newResponse = response.json()
+        newResponse["data"][0]["words"] = words3
+        return newResponse
     except Exception as e:
-        pass
-    return response.json()
+        return response.json()
 
 
 # url 编码关键词
