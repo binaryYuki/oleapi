@@ -150,10 +150,11 @@ if os.getenv("DEBUG", "false").lower() == "false":
     # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
+        allow_origin_regex='^https?:\/\/(.*\.tzpro\.xyz|.*\.tzpro\.uk|localhost)$',
         allow_credentials=True,
-        allow_methods=['GET', 'POST'],
-        allow_headers=['*']
+        allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
+        allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
+                       'Referer', 'Cookie', 'User-Agent'],
     )
 else:
     # noinspection PyTypeChecker
@@ -161,7 +162,7 @@ else:
         CORSMiddleware,
         allow_origins=['*'],
         allow_credentials=True,
-        allow_methods=['GET', 'POST'],
+        allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
         allow_headers=['*']
     )
 
