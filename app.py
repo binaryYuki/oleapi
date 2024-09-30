@@ -150,7 +150,7 @@ if os.getenv("DEBUG", "false").lower() == "false":
     # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex='^https?:\/\/(.*\.tzpro\.xyz|.*\.tzpro\.uk|localhost)$',
+        allow_origin_regex=r'^https?:\/\/(.*\.tzpro\.xyz|.*\.tzpro\.uk|localhost)$',
         allow_credentials=True,
         allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
         allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
