@@ -88,7 +88,7 @@ async def index():
     """
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
-        "version": "v1.0.0-" + version_suffix,
+        "version": "v1.1.3-" + version_suffix,
         "build_at": os.environ.get("BUILD_AT", ""),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
