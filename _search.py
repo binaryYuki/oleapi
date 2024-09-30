@@ -69,6 +69,14 @@ async def link_keywords(keyword):
         response = await client.get(base_url, headers=headers)
     if response.status_code != 200:
         return JSONResponse(content={"error": "Upstream Error"}, status_code=507)
+    try:
+        words = response.json()["data"]["words"]
+        words = dict(set(words))
+        # 排序
+        words = dict(sorted(words.items(), key=lambda x: x[1], reverse=True))
+        response.json()["data"]["words"] = words
+    except Exception as e:
+        pass
     return response.json()
 
 
