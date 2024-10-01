@@ -37,32 +37,45 @@ instanceID = str(uuid.uuid4())  # 只生成一次，不会变
 
 
 async def registerInstance():
+    """
+    注册实例
+    :return:
+    """
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
         f = await redis_connection.get("InstanceRegister")
-        if not f:
+        if f:
+            f = f.decode('utf-8')
+            f = json.loads(f)  # Assume JSON format
+        else:
             f = []
-        f = list(f)
+
         if instanceID not in f:
             f.append(instanceID)
-            f = str(f)
-            await redis_connection.set("InstanceRegister", f)
+            await redis_connection.set("InstanceRegister", json.dumps(f))
+        else:
+            print(f)
     except Exception as e:
         logger.error(f"Failed to register instance: {e}", exc_info=True)
         exit(-1)
 
 
 async def unregisterInstance():
+    """
+    注销实例
+    :return:
+    """
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
         f = await redis_connection.get("InstanceRegister")
-        f = list(f)
-        if instanceID in f:
-            f.remove(instanceID)
-            f = str(f)
-            await redis_connection.set("InstanceRegister", f)
+        if f:
+            f = f.decode('utf-8')
+            f = json.loads(f)  # Assume JSON format
+            if instanceID in f:
+                f.remove(instanceID)
+                await redis_connection.set("InstanceRegister", json.dumps(f))
     except Exception as e:
         logger.error(f"Failed to unregister instance: {e}", exc_info=True)
         exit(-1)
