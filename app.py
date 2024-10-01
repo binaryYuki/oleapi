@@ -40,7 +40,7 @@ async def registerInstance():
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
-        f = redis_connection.get("InstanceRegister")
+        f = await redis_connection.get("InstanceRegister")
         if not f:
             f = []
         f = list(f)
@@ -57,7 +57,7 @@ async def unregisterInstance():
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
-        f = redis_connection.get("InstanceRegister")
+        f = await redis_connection.get("InstanceRegister")
         f = list(f)
         if instanceID in f:
             f.remove(instanceID)
