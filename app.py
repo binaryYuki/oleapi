@@ -4,6 +4,7 @@ import logging
 import os
 import random
 import subprocess
+import uuid
 from contextlib import asynccontextmanager
 
 import httpx
@@ -32,6 +33,41 @@ loglevel = os.getenv("LOG_LEVEL", "ERROR")
 logging.basicConfig(level=logging.getLevelName(loglevel))
 logger = logging.getLogger(__name__)
 
+instanceID = str(uuid.uuid4())
+
+
+async def registerInstance():
+    redis_connection = redis.from_url(
+        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
+    try:
+        f = redis_connection.get("InstanceRegister")
+        if not f:
+            f = []
+        f = list(f)
+        if instanceID not in f:
+            f.append(instanceID)
+            f = str(f)
+            await redis_connection.set("InstanceRegister", f)
+    except Exception as e:
+        logger.error(f"Failed to register instance: {e}", exc_info=True)
+        exit(-1)
+
+
+async def unregisterInstance():
+    redis_connection = redis.from_url(
+        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
+    try:
+        f = redis_connection.get("InstanceRegister")
+        f = list(f)
+        if instanceID in f:
+            f.remove(instanceID)
+            f = str(f)
+            await redis_connection.set("InstanceRegister", f)
+    except Exception as e:
+        logger.error(f"Failed to unregister instance: {e}", exc_info=True)
+        exit(-1)
+
+
 @repeat_every(seconds=60 * 60, wait_first=True)
 async def testPushServer():
     async with httpx.AsyncClient() as client:
@@ -55,16 +91,34 @@ async def lifespan(_: FastAPI):
     test = await redis_connection.ping()
     if test:
         logger.info("Redis connection established")
-    logger.info("cleaning up redis db")
-    await redis_connection.flushdb()
+    # await redis_connection.flushdb()
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
         logger.info("MySQL connection established")
     await testPushServer()
+    await registerInstance()
+    print("Instance registered", instanceID)
     await pushTaskExecQueue()
     yield
     await FastAPILimiter.close()
+    await unregisterInstance()
     await redis_client.connection_pool.disconnect()
+    print("Instance unregistered", instanceID)
+    print("graceful shutdown")
+    exit(0)
+
+
+async def instanceIDHeaderMiddleware(request, call_next):
+    """
+    为请求添加 instanceID 头部
+    :param request:
+    :param call_next:
+    :return:
+    """
+    request.state.instanceID = instanceID
+    response = await call_next(request)
+    response.headers["X-InstanceID"] = instanceID
+    return response
 
 
 # 禁用 openapi.json
@@ -89,6 +143,7 @@ async def index():
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
+        "instance_id": instanceID,
     }
 
     # 将字典转换为 JSON 字符串并格式化
@@ -130,6 +185,7 @@ async def healthz():
         return JSONResponse(content={"status": "error", "redis": redisStatus, "mysql": mysqlStatus,
                                      "redis_hint": redisHint if not redisStatus else "",
                                      "mysql_hint": mysqlHint if not mysqlStatus else ""})
+
 
 secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:
