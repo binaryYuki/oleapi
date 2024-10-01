@@ -33,7 +33,6 @@ loglevel = os.getenv("LOG_LEVEL", "ERROR")
 logging.basicConfig(level=logging.getLevelName(loglevel))
 logger = logging.getLogger(__name__)
 
-
 @repeat_every(seconds=60 * 60, wait_first=True)
 async def testPushServer():
     async with httpx.AsyncClient() as client:
