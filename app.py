@@ -118,7 +118,6 @@ async def lifespan(_: FastAPI):
     await redis_client.connection_pool.disconnect()
     print("Instance unregistered", instanceID)
     print("graceful shutdown")
-    exit(0)
 
 
 # 禁用 openapi.json
