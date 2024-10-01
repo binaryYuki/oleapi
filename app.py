@@ -21,7 +21,6 @@ from starlette.responses import HTMLResponse
 
 from _auth import authRoute
 from _cronjobs import pushTaskExecQueue
-from _crypto import cryptoRouter, init_crypto
 from _db import init_db, test_db_connection
 from _redis import redis_client, set_key as redis_set_key
 from _search import searchRouter
@@ -61,7 +60,6 @@ async def lifespan(_: FastAPI):
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
         logger.info("MySQL connection established")
-    await init_crypto()
     await testPushServer()
     await pushTaskExecQueue()
     yield
@@ -76,7 +74,6 @@ app.include_router(authRoute)
 app.include_router(userRoute)
 app.include_router(searchRouter)
 app.include_router(trendingRoute)
-app.include_router(cryptoRouter)
 
 
 @app.get('/')
