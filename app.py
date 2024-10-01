@@ -33,7 +33,7 @@ loglevel = os.getenv("LOG_LEVEL", "ERROR")
 logging.basicConfig(level=logging.getLevelName(loglevel))
 logger = logging.getLogger(__name__)
 
-instanceID = str(uuid.uuid4())
+instanceID = str(uuid.uuid4())  # 只生成一次，不会变
 
 
 async def registerInstance():
@@ -108,19 +108,6 @@ async def lifespan(_: FastAPI):
     exit(0)
 
 
-async def instanceIDHeaderMiddleware(request, call_next):
-    """
-    为请求添加 instanceID 头部
-    :param request:
-    :param call_next:
-    :return:
-    """
-    request.state.instanceID = instanceID
-    response = await call_next(request)
-    response.headers["X-InstanceID"] = instanceID
-    return response
-
-
 # 禁用 openapi.json
 app = FastAPI(lifespan=lifespan, title="Anime API", version="1.0.0.beta", openapi_url=None)
 
@@ -128,6 +115,19 @@ app.include_router(authRoute)
 app.include_router(userRoute)
 app.include_router(searchRouter)
 app.include_router(trendingRoute)
+
+
+@app.middleware("http")
+async def instance_id_header_middleware(request, call_next):
+    """
+    添加 Instance ID 到响应头
+    :param request:
+    :param call_next:
+    :return:
+    """
+    response = await call_next(request)
+    response.headers["X-Instance-ID"] = instanceID
+    return response
 
 
 @app.get('/')
