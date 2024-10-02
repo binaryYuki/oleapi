@@ -201,8 +201,9 @@ async def healthz():
             live_servers = []
     except Exception as e:
         live_servers = []
-    if redisStatus and mysqlStatus:
-        return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus})
+    if redisStatus and mysqlStatus and live_servers:
+        return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus,
+                                     "live_servers": live_servers})
     else:
         return JSONResponse(content={"status": "error", "redis": redisStatus, "mysql": mysqlStatus,
                                      "redis_hint": redisHint if not redisStatus else "",
