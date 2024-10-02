@@ -191,12 +191,19 @@ async def healthz():
     except Exception as e:
         mysqlStatus = False
         mysqlHint = str(e)
+    try:
+        live_servers = await redis_client.get("InstanceRegister")
+        if live_servers:
+            live_servers = json.loads(live_servers)
+        else:
+            live_servers = []
     if redisStatus and mysqlStatus:
         return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus})
     else:
         return JSONResponse(content={"status": "error", "redis": redisStatus, "mysql": mysqlStatus,
                                      "redis_hint": redisHint if not redisStatus else "",
-                                     "mysql_hint": mysqlHint if not mysqlStatus else ""})
+                                     "mysql_hint": mysqlHint if not mysqlStatus else "",
+                                     "live_servers": live_servers})
 
 
 secret_key = os.environ.get("SESSION_SECRET")
