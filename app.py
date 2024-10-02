@@ -194,6 +194,8 @@ async def healthz():
     try:
         live_servers = await redis_client.get("InstanceRegister")
         if live_servers:
+            if type(live_servers) == bytes:
+                live_servers = live_servers.decode('utf-8')
             live_servers = json.loads(live_servers)
             # 全转为 hash
             live_servers = [hash(x) for x in live_servers]
