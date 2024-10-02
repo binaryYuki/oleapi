@@ -195,8 +195,12 @@ async def healthz():
         live_servers = await redis_client.get("InstanceRegister")
         if live_servers:
             live_servers = json.loads(live_servers)
+            # 全转为 hash
+            live_servers = [hash(x) for x in live_servers]
         else:
             live_servers = []
+    except Exception as e:
+        live_servers = []
     if redisStatus and mysqlStatus:
         return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus})
     else:
