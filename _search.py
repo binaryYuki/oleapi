@@ -125,6 +125,10 @@ async def keyword(request: Request):
     keyword = data.get('keyword')
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
+    if keyword == 'Yuki Forever💗':
+        return JSONResponse(
+            {"code": 0, "data": [{"type": "vod", "words": ["每一个未来的瞬间", "都有你的名字", "Yuki Forever💗"]}],
+             "msg": "ok"}, status_code=200)
     redis_key = f"keyword_{datetime.datetime.now().strftime('%Y-%m-%d')}_{keyword}"
     try:
         if await redis_get_key(redis_key):
