@@ -118,7 +118,7 @@ async def search(request: Request, background_tasks: BackgroundTasks):
         return JSONResponse(json.dumps(result), status_code=200)
 
 
-@searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=1, seconds=1))], methods=['POST'],
+@searchRouter.api_route('/keyword', dependencies=[Depends(RateLimiter(times=3, seconds=1))], methods=['POST'],
                         name='keyword')
 async def keyword(request: Request):
     data = await request.json()
