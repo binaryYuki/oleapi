@@ -23,6 +23,7 @@ from starlette.responses import HTMLResponse
 
 from _auth import authRoute
 from _cronjobs import pushTaskExecQueue
+from _crypto import cryptoRouter, init_crypto
 from _db import init_db, test_db_connection
 from _redis import redis_client, set_key as redis_set_key
 from _search import searchRouter
@@ -86,7 +87,7 @@ async def unregisterInstance():
 async def testPushServer():
     baseURL = os.getenv("PUSH_SERVER_URL", "").replace("https://", "").replace("http://", "")
     if not baseURL:
-        returnb
+        return
     async with httpx.AsyncClient() as client:
         f = await client.get(f"https://{baseURL}/healthz")
         if f.status_code == 200:
@@ -116,6 +117,7 @@ async def lifespan(_: FastAPI):
     await registerInstance()
     print("Instance registered", instanceID)
     await pushTaskExecQueue()
+    await init_crypto()
     yield
     await FastAPILimiter.close()
     await unregisterInstance()
@@ -131,6 +133,7 @@ app.include_router(authRoute)
 app.include_router(userRoute)
 app.include_router(searchRouter)
 app.include_router(trendingRoute)
+app.include_router(cryptoRouter)
 
 
 @app.middleware("http")
