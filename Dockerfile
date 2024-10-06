@@ -1,40 +1,34 @@
+# Start from the base image
 ARG PYTHON_VERSION=3.12.4
 FROM python:${PYTHON_VERSION}-slim AS base
 
+# Define build arguments and environment variables
 ARG COMMIT_ID
 ENV COMMIT_ID=${COMMIT_ID}
 
 ARG BUILD_AT
 ENV BUILD_AT=${BUILD_AT}
 
-
 # Prevents Python from writing pyc files.
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Keeps Python from buffering stdout and stderr to avoid situations where
-# the application crashes without emitting any logs due to buffering.
+# Keeps Python from buffering stdout and stderr.
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/go/dockerfile-user-best-practices/
-    ARG UID=10001
-    RUN adduser \
-        --disabled-password \
-        --gecos "" \
-        --home "/nonexistent" \
-        --shell "/sbin/nologin" \
-        --no-create-home \
-        --uid "${UID}" \
-        appuser
+# Create a non-privileged user for the app.
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
 
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
-# Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
-
-# install pkg-config and mysqlclient dependencies to build mysqlclient
+# Install required packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libmariadb-dev-compat \
@@ -42,9 +36,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup Python environment in a distinct build stage
+FROM base AS builder
+
+WORKDIR /app
+
+# Install uv package
+RUN pip install uv
+
+# Create a virtual environment and install dependencies
+RUN uv venv && \
+    . .venv/bin/activate && \
+    pip install --upgrade pip
+
+# Leverage a cache mount to speed up subsequent builds
+COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,source=requirements.txt,target=requirements.txt \
-    python -m pip install -r requirements.txt
+    . .venv/bin/activate && uv pip sync requirements.txt
+
+# Copy the source code into the container in the final stage
+FROM base AS final
+
+# Set working directory
+WORKDIR /app
+
+# Copy the prepared virtual environment and source code
+COPY --from=builder /app/.venv /app/.venv
+COPY . .
 
 # Change ownership to the appuser
 RUN chown -R appuser:appuser /app
@@ -52,11 +70,8 @@ RUN chown -R appuser:appuser /app
 # Switch to the non-privileged user to run the application.
 USER appuser
 
-# Copy the source code into the container.
-COPY . .
-
 # Expose the port that the application listens on.
 EXPOSE 8000
 
-# Run the application.
-CMD python3 app.py
+# Run the application using the virtual environment
+CMD ["/bin/sh", "-c", ". .venv/bin/activate && python3 app.py"]

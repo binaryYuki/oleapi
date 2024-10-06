@@ -4,6 +4,8 @@ import logging
 import os
 import random
 import subprocess
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 import httpx
@@ -20,67 +22,144 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import HTMLResponse
 
 from _auth import authRoute
-from _crypto import cryptoRouter, init_crypto
+from _cronjobs import pushTaskExecQueue
 from _db import init_db, test_db_connection
-from _redis import redis_client
+from _redis import redis_client, set_key as redis_set_key
 from _search import searchRouter
 from _trend import trendingRoute
 from _user import userRoute
 
 load_dotenv()
+loglevel = os.getenv("LOG_LEVEL", "ERROR")
+logging.basicConfig(level=logging.getLevelName(loglevel))
+logger = logging.getLogger(__name__)
 
-logging.getLogger().setLevel(logging.ERROR)
+instanceID = uuid.uuid4().hex
 
 
-@repeat_every(seconds=10)
-async def clean_up():
-    async with httpx.AsyncClient() as client:
-        f = await client.get("https://push.tzpro.xyz/healthzzzz")
+async def registerInstance():
+    """
+    注册实例
+    :return:
+    """
+    redis_connection = redis.from_url(
+        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
+    try:
+        f = await redis_connection.get("InstanceRegister")
         if f:
-            logging.info("Clean up success")
+            f = f.decode('utf-8')
+            f = json.loads(f)  # Assume JSON format
         else:
-            logging.error("Clean up failed")
+            f = []
+
+        if instanceID not in f:
+            f.append(instanceID)
+            await redis_connection.set("InstanceRegister", json.dumps(f))
+        else:
+            print(f)
+    except Exception as e:
+        logger.error(f"Failed to register instance: {e}", exc_info=True)
+        exit(-1)
+
+
+async def unregisterInstance():
+    """
+    注销实例
+    :return:
+    """
+    redis_connection = redis.from_url(
+        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
+    try:
+        f = await redis_connection.get("InstanceRegister")
+        if f:
+            f = f.decode('utf-8')
+            f = json.loads(f)  # Assume JSON format
+            if instanceID in f:
+                f.remove(instanceID)
+                await redis_connection.set("InstanceRegister", json.dumps(f))
+    except Exception as e:
+        logger.error(f"Failed to unregister instance: {e}", exc_info=True)
+        exit(-1)
+
+
+@repeat_every(seconds=60 * 60, wait_first=True)
+async def testPushServer():
+    baseURL = os.getenv("PUSH_SERVER_URL", "").replace("https://", "").replace("http://", "")
+    if not baseURL:
+        returnb
+    async with httpx.AsyncClient() as client:
+        f = await client.get(f"https://{baseURL}/healthz")
+        if f.status_code == 200:
+            await redis_set_key("server_status", "running")
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """
+    整个 FastAPI 生命周期的上下文管理器
+    :param _: FastAPI 实例
+    :return: None
+    :param _:
+    :return:
+    """
     redis_connection = redis.from_url(
         f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     await FastAPILimiter.init(redis_connection)
     test = await redis_connection.ping()
     if test:
-        logging.info("Redis connection established")
-    logging.info("cleaning up redis db")
-    await redis_connection.flushdb()
+        logger.info("Redis connection established")
+    # await redis_connection.flushdb()
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
-        logging.info("MySQL connection established")
-    await init_crypto()
-    await clean_up()
+        logger.info("MySQL connection established")
+    await testPushServer()
+    await registerInstance()
+    print("Instance registered", instanceID)
+    await pushTaskExecQueue()
     yield
     await FastAPILimiter.close()
+    await unregisterInstance()
     await redis_client.connection_pool.disconnect()
+    print("Instance unregistered", instanceID)
+    print("graceful shutdown")
 
 
 # 禁用 openapi.json
-app = FastAPI(lifespan=lifespan, title="Anime API", version="1.0.0.beta", openapi_url=None)
+app = FastAPI(lifespan=lifespan, title="Anime API", version="1.1.3.beta", openapi_url=None)
 
 app.include_router(authRoute)
 app.include_router(userRoute)
 app.include_router(searchRouter)
 app.include_router(trendingRoute)
-app.include_router(cryptoRouter)
+
+
+@app.middleware("http")
+async def instance_id_header_middleware(request, call_next):
+    """
+    添加 Instance ID 到响应头
+    :param request:
+    :param call_next:
+    :return:
+    """
+    response = await call_next(request)
+    response.headers["X-Instance-ID"] = instanceID
+    return response
 
 
 @app.get('/')
 async def index():
+    """
+    首页
+    :return:
+    """
     version_suffix = os.getenv("COMMIT_ID", "")[:8]
     info = {
-        "version": "v1.0.0-" + version_suffix,
+        "version": "v1.1.3-" + version_suffix,
         "build_at": os.environ.get("BUILD_AT", ""),
         "author": "binaryYuki <noreply.tzpro.xyz>",
         "arch": subprocess.run(['uname', '-m'], stdout=subprocess.PIPE).stdout.decode().strip(),
         "commit": os.getenv("COMMIT_ID", ""),
+        "instance_id": instanceID,
     }
 
     # 将字典转换为 JSON 字符串并格式化
@@ -96,7 +175,10 @@ async def index():
 
 @app.api_route('/healthz', methods=['GET'])
 async def healthz():
-    # check redis connection
+    """
+    健康检查
+    :return:
+    """
     try:
         await redis_client.ping()
         redisStatus = True
@@ -113,36 +195,73 @@ async def healthz():
     except Exception as e:
         mysqlStatus = False
         mysqlHint = str(e)
-    if redisStatus and mysqlStatus:
-        return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus})
+    try:
+        live_servers = await redis_client.get("InstanceRegister")
+        if live_servers:
+            if type(live_servers) == bytes:
+                live_servers = live_servers.decode('utf-8')
+            live_servers = json.loads(live_servers)
+            # 二次检查 删除非46b123fcac8a4595b5d6a7cf0ca413cb格式的实例ID
+            live_servers = [x for x in live_servers if len(x) == 32]
+        else:
+            live_servers = []
+    except Exception as e:
+        live_servers = []
+    if redisStatus and mysqlStatus and live_servers:
+        return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus,
+                                     "live_servers": live_servers})
     else:
         return JSONResponse(content={"status": "error", "redis": redisStatus, "mysql": mysqlStatus,
                                      "redis_hint": redisHint if not redisStatus else "",
-                                     "mysql_hint": mysqlHint if not mysqlStatus else ""})
+                                     "mysql_hint": mysqlHint if not mysqlStatus else "",
+                                     "live_servers": live_servers})
+
+
+@app.middleware("http")
+async def add_process_time_header(request, call_next):
+    """
+    添加处理时间到响应头
+    :param request:
+    :param call_next:
+    :return:
+    """
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    # round it to 3 decimal places and add the unit which is seconds
+    process_time = round(process_time, 3)
+    response.headers["X-Process-Time"] = str(process_time) + "s"
+    return response
 
 
 secret_key = os.environ.get("SESSION_SECRET")
 if not secret_key:
     secret_key = binascii.hexlify(random.randbytes(16)).decode('utf-8')
 
+# noinspection PyTypeChecker
 app.add_middleware(SessionMiddleware, secret_key=secret_key,
                    session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
+# noinspection PyTypeChecker
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
+# noinspection PyTypeChecker
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 if os.getenv("DEBUG", "false").lower() == "false":
+    # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=['https://anime.tzpro.xyz', 'https://animeapi.tzpro.xyz'],
+        allow_origin_regex=r'^https?:\/\/(localhost:3000|.*\.tzpro\.xyz|.*\.tzpro\.uk)(\/.*)?$',
         allow_credentials=True,
-        allow_methods=['GET', 'POST'],
-        allow_headers=['*']
+        allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
+        allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
+                       'Referer', 'Cookie', 'User-Agent'],
     )
 else:
+    # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
         allow_origins=['*'],
         allow_credentials=True,
-        allow_methods=['GET', 'POST'],
+        allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
         allow_headers=['*']
     )
 
