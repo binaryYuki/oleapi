@@ -1,4 +1,3 @@
-import binascii
 import json
 import logging
 import os
@@ -8,6 +7,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+import binascii
 import httpx
 import redis.asyncio as redis
 from dotenv import load_dotenv
@@ -178,9 +178,10 @@ async def healthz():
     try:
         await redis_client.ping()
         redisStatus = True
+        redisHint = ""
     except Exception as e:
-        redisHint = str(e)
         redisStatus = False
+        redisHint = str(e)
     # check mysql connection
     try:
         await test_db_connection()
