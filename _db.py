@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import dotenv
 import sqlalchemy
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, QueuePool, String, Text, select, text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, select, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -25,7 +25,7 @@ if DATABASE_URL.startswith("mysql://"):
 
 # Set up SQLAlchemy
 Base = declarative_base()  # 这里是一个基类，所有的 ORM 类都要继承这个类
-engine = create_async_engine(DATABASE_URL, poolclass=QueuePool, pool_size=20, max_overflow=0, pool_recycle=600,
+engine = create_async_engine(DATABASE_URL, pool_size=20, max_overflow=0, pool_recycle=600,
                              pool_pre_ping=True)
 # noinspection PyTypeChecker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
