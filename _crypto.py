@@ -99,7 +99,7 @@ async def decryptData(data: str):
             )
         )
 
-        print("decrypted_data", decrypted_data.decode('utf-8'))
+        # print("decrypted_data", decrypted_data.decode('utf-8'))
 
         return decrypted_data.decode('utf-8')
 
