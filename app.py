@@ -1,3 +1,4 @@
+import binascii
 import json
 import logging
 import os
@@ -7,7 +8,6 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
-import binascii
 import httpx
 import redis.asyncio as redis
 from dotenv import load_dotenv
@@ -164,9 +164,7 @@ async def index():
         "instance_id": instanceID,
     }
 
-    # 将字典转换为 JSON 字符串并格式化
-    json_data = json.dumps(info, indent=4)
-    return JSONResponse(content=json_data, media_type="application/json")
+    return JSONResponse(content=info, media_type="application/json")
 
 
 @app.api_route('/healthz', methods=['GET'])
@@ -259,7 +257,8 @@ else:
         allow_origins=['*'],
         allow_credentials=True,
         allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
-        allow_headers=['*']
+        allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
+                       'Referer', 'Cookie', 'User-Agent'],
     )
 
 if __name__ == '__main__':

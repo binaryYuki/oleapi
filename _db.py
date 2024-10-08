@@ -25,9 +25,9 @@ if DATABASE_URL.startswith("mysql://"):
 
 # Set up SQLAlchemy
 Base = declarative_base()  # 这里是一个基类，所有的 ORM 类都要继承这个类
-engine = create_async_engine(DATABASE_URL, echo=True)  # 创建一个引擎
+engine = create_async_engine(DATABASE_URL, echo=False, pool_recycle=3600)
 # noinspection PyTypeChecker
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)  # 异步会话类
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 
 # 枚举类型定义
