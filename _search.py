@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import urllib.parse
+from time import time
 
 import httpx
 from fastapi import BackgroundTasks, Depends
@@ -10,6 +11,7 @@ from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from _crypto import decryptData
 from _db import cache_vod_data
 from _redis import get_key as redis_get_key, key_exists as redis_key_exists, set_key as redis_set_key
 from _utils import _getRandomUserAgent, generate_vv_detail
@@ -19,6 +21,35 @@ searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
 
 async def _getProxy():
     return None  # 废弃接口，直接返回 None
+
+
+async def checkSum(data):
+    """
+    解密数据
+    :param data:  加密数据
+    :return:  解密后的数据
+    """
+    try:
+        timestamp = data.get('timestamp')
+        if not await checkTimeStamp(timestamp):
+            return JSONResponse({"error": "Invalid Request, timestamp expired"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": "Invalid Request, missing param: timestamp"}, status_code=400,
+                            headers={"X-Error": str(e)})
+    try:
+        data = await decryptData(data.get('data'))
+    except Exception as e:
+        return JSONResponse({"error": "Invalid Request, invalid data"}, status_code=400)
+    return json.loads(data)
+
+
+async def checkTimeStamp(ts):
+    """
+    检查时间戳是否在有效范围内 1分钟
+    """
+    if int(time()) - int(ts) > 60:
+        return False
+    return True
 
 
 async def search_api(keyword, page=1, size=4):
@@ -91,6 +122,7 @@ def url_encode(keyword):
                         name='search')
 async def search(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
+    data = await checkSum(data)
     keyword, page, size = data.get('keyword'), data.get('page'), data.get('size')
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
@@ -122,6 +154,7 @@ async def search(request: Request, background_tasks: BackgroundTasks):
                         name='keyword')
 async def keyword(request: Request):
     data = await request.json()
+    data = await checkSum(data)
     keyword = data.get('keyword')
     if keyword == '' or keyword == 'your keyword':
         return JSONResponse({}, status_code=200)
@@ -151,6 +184,7 @@ async def keyword(request: Request):
                         dependencies=[Depends(RateLimiter(times=1, seconds=3))])
 async def detail(request: Request):
     data = await request.json()
+    data = await checkSum(data)
     try:
         id = data.get('id')
     except Exception as e:

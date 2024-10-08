@@ -1,9 +1,14 @@
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+import base64
+from logging import getLogger
+
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from fastapi import Request, Response
 from fastapi.routing import APIRouter
 
 from _redis import delete_key as redis_delete_key, get_key as redis_get_key, set_key as redis_set_key
+
+logger = getLogger(__name__)
 
 cryptoRouter = APIRouter(prefix='/api/crypto', tags=['Crypto', 'Crypto Api'])
 
@@ -57,3 +62,47 @@ async def get_public_key(request: Request):
     """
     public_key = await redis_get_key("public_key")
     return Response(content=public_key, media_type="text/plain")
+
+
+async def decryptData(data: str):
+    """
+    解密数据
+    :param data: str
+    :return:
+    """
+    try:
+        private_key = await redis_get_key("private_key")
+    except Exception as e:
+        raise Exception(f"redis error")
+    try:
+        private_key_data = await redis_get_key("private_key")
+
+        # 检查是否正确获取了私钥
+        if not private_key_data:
+            raise Exception("Internal Server Error")
+
+        private_key = serialization.load_pem_private_key(
+            private_key_data.encode(),
+            password=None
+        )
+
+        # 使用 Base64 解码
+        encrypted_data = base64.b64decode(data)
+
+        # 解密数据
+        decrypted_data = private_key.decrypt(
+            encrypted_data,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                algorithm=hashes.SHA1(),
+                label=None
+            )
+        )
+
+        print("decrypted_data", decrypted_data.decode('utf-8'))
+
+        return decrypted_data.decode('utf-8')
+
+    except Exception as e:
+        print(f"Decryption error: {e}")
+        raise Exception("Unexpected error")
