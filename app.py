@@ -19,7 +19,6 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_utils.tasks import repeat_every
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import HTMLResponse
 
 from _auth import authRoute
 from _cronjobs import pushTaskExecQueue
@@ -167,13 +166,7 @@ async def index():
 
     # 将字典转换为 JSON 字符串并格式化
     json_data = json.dumps(info, indent=4)
-
-    # 将 JSON 数据嵌入到 HTML 页面中
-    html_content = f"""
-            <pre>{json_data}</pre>
-    """
-
-    return HTMLResponse(content=html_content)
+    return JSONResponse(content=json_data, media_type="application/json")
 
 
 @app.api_route('/healthz', methods=['GET'])
