@@ -118,7 +118,7 @@ async def keerRedisAlive():
     Keep Redis alive avoid server from cool startup
     """
     await redis_set_key("alive", "yes", ex=60 * 60 * 24)
-    print("Redis is alive")
+    # print("Redis is alive")
     await redis_client.delete("alive")
     return True
 
@@ -129,5 +129,5 @@ async def keepMySQLAlive():
     Keep MySQL alive avoid server from cool startup
     """
     await test_db_connection()
-    print("MySQL is alive")
+    # print("MySQL is alive")
     return True
