@@ -181,17 +181,20 @@ async def healthz():
         redisHint = ""
     except Exception as e:
         redisStatus = False
-        redisHint = str(e)
+        logging.error("Redis error: %s", str(e))
+        redisHint = "An error occurred with Redis"
     # check mysql connection
     try:
         await test_db_connection()
         mysqlStatus = True
     except ConnectionError as e:
         mysqlStatus = False
-        mysqlHint = str(e)
+        logging.error("MySQL connection error: %s", str(e))
+        mysqlHint = "A connection error occurred with MySQL"
     except Exception as e:
         mysqlStatus = False
-        mysqlHint = str(e)
+        logging.error("MySQL error: %s", str(e))
+        mysqlHint = "An error occurred with MySQL"
     try:
         live_servers = await redis_client.get("InstanceRegister")
         if live_servers:
@@ -209,8 +212,8 @@ async def healthz():
                                      "live_servers": live_servers})
     else:
         return JSONResponse(content={"status": "error", "redis": redisStatus, "mysql": mysqlStatus,
-                                     "redis_hint": redisHint if not redisStatus else "",
-                                     "mysql_hint": mysqlHint if not mysqlStatus else "",
+                                     "redis_hint": "An error occurred" if not redisStatus else "",
+                                     "mysql_hint": "An error occurred" if not mysqlStatus else "",
                                      "live_servers": live_servers})
 
 
