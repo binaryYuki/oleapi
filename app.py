@@ -1,5 +1,4 @@
 import binascii
-import json
 import logging
 import os
 import random
@@ -15,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_utils.tasks import repeat_every
 from starlette.middleware.sessions import SessionMiddleware
@@ -24,7 +23,7 @@ from _auth import authRoute
 from _cronjobs import keepMySQLAlive, keerRedisAlive, pushTaskExecQueue
 from _crypto import cryptoRouter, init_crypto
 from _db import init_db, test_db_connection
-from _redis import redis_client, set_key as redis_set_key
+from _redis import get_keys_by_pattern, redis_client, set_key as redis_set_key
 from _search import searchRouter
 from _trend import trendingRoute
 from _user import userRoute
@@ -37,53 +36,38 @@ logger = logging.getLogger(__name__)
 instanceID = uuid.uuid4().hex
 
 
+@repeat_every(seconds=60 * 3, wait_first=True)
 async def registerInstance():
     """
     注册实例
     :return:
     """
-    redis_connection = redis.from_url(
-        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
-        f = await redis_connection.get("InstanceRegister")
-        if f:
-            f = f.decode('utf-8')
-            f = json.loads(f)  # Assume JSON format
-        else:
-            f = []
-
-        if instanceID not in f:
-            f.append(instanceID)
-            await redis_connection.set("InstanceRegister", json.dumps(f))
-        else:
-            print(f)
+        await redis_set_key(f"node:{instanceID}", str(int(time.time())), 60 * 3)  # re-register every 3 minutes
     except Exception as e:
         logger.error(f"Failed to register instance: {e}", exc_info=True)
         exit(-1)
+    return True
 
 
-async def unregisterInstance():
+async def getLiveInstances():
     """
-    注销实例
+    获取活跃实例
     :return:
     """
-    redis_connection = redis.from_url(
-        f"redis://default:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}")
     try:
-        f = await redis_connection.get("InstanceRegister")
-        if f:
-            f = f.decode('utf-8')
-            f = json.loads(f)  # Assume JSON format
-            if instanceID in f:
-                f.remove(instanceID)
-                await redis_connection.set("InstanceRegister", json.dumps(f))
+        f = await get_keys_by_pattern("node:*")
+        return f
     except Exception as e:
-        logger.error(f"Failed to unregister instance: {e}", exc_info=True)
-        exit(-1)
+        logger.error(f"Failed to get live instances: {e}", exc_info=True)
+        return []
 
 
 @repeat_every(seconds=60 * 60, wait_first=True)
 async def testPushServer():
+    """
+    测试推送服务器
+    """
     baseURL = os.getenv("PUSH_SERVER_URL", "").replace("https://", "").replace("http://", "")
     if not baseURL:
         return
@@ -108,7 +92,7 @@ async def lifespan(_: FastAPI):
     test = await redis_connection.ping()
     if test:
         logger.info("Redis connection established")
-    # await redis_connection.flushdb()
+    # await redis_connection.flush db()
     if os.getenv("MYSQL_CONN_STRING"):
         await init_db()
         logger.info("MySQL connection established")
@@ -121,7 +105,6 @@ async def lifespan(_: FastAPI):
     await init_crypto()
     yield
     await FastAPILimiter.close()
-    await unregisterInstance()
     await redis_client.connection_pool.disconnect()
     print("Instance unregistered", instanceID)
     print("graceful shutdown")
@@ -166,7 +149,13 @@ async def index():
         "instance_id": instanceID,
     }
 
-    return JSONResponse(content=info, media_type="application/json")
+    html = f"""
+    <pre>
+    {info}
+    </pre>
+    """
+
+    return HTMLResponse(content=info)
 
 
 @app.api_route('/healthz', methods=['GET'])
@@ -178,11 +167,9 @@ async def healthz():
     try:
         await redis_client.ping()
         redisStatus = True
-        redisHint = ""
     except Exception as e:
         redisStatus = False
         logging.error("Redis error: %s", str(e))
-        redisHint = "An error occurred with Redis"
     # check mysql connection
     try:
         await test_db_connection()
@@ -190,22 +177,13 @@ async def healthz():
     except ConnectionError as e:
         mysqlStatus = False
         logging.error("MySQL connection error: %s", str(e))
-        mysqlHint = "A connection error occurred with MySQL"
     except Exception as e:
         mysqlStatus = False
         logging.error("MySQL error: %s", str(e))
-        mysqlHint = "An error occurred with MySQL"
     try:
-        live_servers = await redis_client.get("InstanceRegister")
-        if live_servers:
-            if type(live_servers) == bytes:
-                live_servers = live_servers.decode('utf-8')
-            live_servers = json.loads(live_servers)
-            # 二次检查 删除非46b123fcac8a4595b5d6a7cf0ca413cb格式的实例ID
-            live_servers = [x for x in live_servers if len(x) == 32]
-        else:
-            live_servers = []
+        live_servers = await getLiveInstances()
     except Exception as e:
+        print(f"Error getting live servers: {e}")
         live_servers = []
     if redisStatus and mysqlStatus and live_servers:
         return JSONResponse(content={"status": "ok", "redis": redisStatus, "mysql": mysqlStatus,
