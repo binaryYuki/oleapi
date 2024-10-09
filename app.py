@@ -21,7 +21,7 @@ from fastapi_utils.tasks import repeat_every
 from starlette.middleware.sessions import SessionMiddleware
 
 from _auth import authRoute
-from _cronjobs import pushTaskExecQueue
+from _cronjobs import keepMySQLAlive, keerRedisAlive, pushTaskExecQueue
 from _crypto import cryptoRouter, init_crypto
 from _db import init_db, test_db_connection
 from _redis import redis_client, set_key as redis_set_key
@@ -116,6 +116,8 @@ async def lifespan(_: FastAPI):
     await registerInstance()
     print("Instance registered", instanceID)
     await pushTaskExecQueue()
+    await keerRedisAlive()
+    await keepMySQLAlive()
     await init_crypto()
     yield
     await FastAPILimiter.close()

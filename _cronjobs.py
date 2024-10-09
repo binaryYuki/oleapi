@@ -6,8 +6,8 @@ from fastapi_utils.tasks import repeat_every
 from httpx import AsyncClient
 from sqlalchemy.exc import OperationalError
 
-from _db import PushLog, SessionLocal
-from _redis import delete_key, get_key, get_keys_by_pattern
+from _db import PushLog, SessionLocal, test_db_connection
+from _redis import delete_key, get_key, get_keys_by_pattern, redis_client, set_key as redis_set_key
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ async def logPushTask(taskId: str, data: dict):
                 return False
 
 
-@repeat_every(seconds=5)
+@repeat_every(seconds=30, wait_first=True)  # wait_first=True 表示等待第一次执行 也就是启动时执行
 async def pushTaskExecQueue() -> bool:
     """
     Process push tasks from the Redis keys matching 'pushTask:*' pattern.
@@ -110,3 +110,24 @@ async def pushTaskExecQueue() -> bool:
     except Exception as e:
         logger.error(f"Error in pushTaskExecQueue: {e}", exc_info=True)
         return False
+
+
+@repeat_every(seconds=3 * 60, wait_first=True)
+async def keerRedisAlive():
+    """
+    Keep Redis alive avoid server from cool startup
+    """
+    await redis_set_key("alive", "yes", ex=60 * 60 * 24)
+    print("Redis is alive")
+    await redis_client.delete("alive")
+    return True
+
+
+@repeat_every(seconds=3 * 60, wait_first=True)
+async def keepMySQLAlive():
+    """
+    Keep MySQL alive avoid server from cool startup
+    """
+    await test_db_connection()
+    print("MySQL is alive")
+    return True
