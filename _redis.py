@@ -52,14 +52,13 @@ async def get_keys_by_pattern(pattern: str) -> list:
             return []
 
 
-
 # Set a key-value pair in Redis
 async def set_key(key: str, value: str, ex: Optional[int] = None) -> bool:
     """
     Set a value in Redis with an optional expiration time (in seconds).
     """
     try:
-        if type(value) == dict:
+        if type(value) is dict:
             value = json.dumps(value)
         await redis_client.set(name=key, value=value, ex=ex)
         return True
