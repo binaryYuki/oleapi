@@ -3,8 +3,9 @@ from logging import getLogger
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
-from fastapi import Request, Response
+from fastapi import Depends, Request, Response
 from fastapi.routing import APIRouter
+from fastapi_limiter.depends import RateLimiter
 
 from _redis import delete_key as redis_delete_key, get_key as redis_get_key, set_key as redis_set_key
 
@@ -53,7 +54,8 @@ async def init_crypto():
         raise Exception(f"Failed to init crypto: {e}")
 
 
-@cryptoRouter.options('/getPublicKey')
+@cryptoRouter.api_route('/getPublicKey', dependencies=[Depends(RateLimiter(times=1, seconds=1))],
+                        methods=['OPTIONS'], summary='Get Public Key', description='Get Public Key')
 async def get_public_key(request: Request):
     """
     获取公钥

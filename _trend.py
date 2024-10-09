@@ -100,7 +100,7 @@ async def fetch_trending_data(request: Request, period: Optional[str] = 'day'):
         return JSONResponse(status_code=500, content={'error': f"An error occurred: {e}, response: {response.text}"})
 
 
-@trendingRoute.api_route('/v2/{typeID}', methods=['POST'], dependencies=[Depends(RateLimiter(times=5, seconds=1))])
+@trendingRoute.api_route('/v2/{typeID}', methods=['POST'], dependencies=[Depends(RateLimiter(times=2, seconds=1))])
 async def fetch_trending_data_v2(request: Request, typeID: Optional[int] = None):
     """
     Fetch trending data from the OLE API.
