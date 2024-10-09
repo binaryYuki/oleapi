@@ -155,7 +155,7 @@ async def index():
     </pre>
     """
 
-    return HTMLResponse(content=info)
+    return HTMLResponse(content=html)
 
 
 @app.api_route('/healthz', methods=['GET'])
