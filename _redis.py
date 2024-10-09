@@ -25,6 +25,7 @@ redis_client = redis.from_url(REDIS_CONN)
 async def test_redis():
     try:
         await redis_client.ping()
+        await redis_client.delete("InstanceRegister")
         return True
     except redis.RedisError as e:
         print(f"Error connecting to Redis: {e}")
