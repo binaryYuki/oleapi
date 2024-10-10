@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import json
 import logging
+import urllib
 import uuid
 
 from fake_useragent import UserAgent
@@ -113,6 +114,11 @@ async def pushNotification(baseURL: str, msg: str, icon: str = '', click_url: st
             return False
         else:
             return True
+
+
+# url 编码关键词
+def url_encode(keyword):
+    return urllib.parse.quote(keyword.encode())
 
 
 async def generatePushTask(baseURL: str, msg: str, user_id: str, receiver: str, icon=None, click_url=None,

@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import urllib.parse
 from time import time
 
 import httpx
@@ -9,12 +8,13 @@ from fastapi import BackgroundTasks, Depends
 from fastapi.routing import APIRouter
 from fastapi_limiter.depends import RateLimiter
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 from _crypto import decryptData
 from _db import cache_vod_data
-from _redis import get_key as redis_get_key, key_exists as redis_key_exists, set_key as redis_set_key
-from _utils import _getRandomUserAgent, generate_vv_detail
+from _redis import delete_key as redis_delete_key, get_key as redis_get_key, key_exists as redis_key_exists, \
+    set_key as redis_set_key
+from _utils import _getRandomUserAgent, generate_vv_detail, url_encode
 
 searchRouter = APIRouter(prefix='/api/query/ole', tags=['Search', 'Search Api'])
 
@@ -113,11 +113,6 @@ async def link_keywords(keyword):
         return response.json()
 
 
-# url 编码关键词
-def url_encode(keyword):
-    return urllib.parse.quote(keyword.encode())
-
-
 @searchRouter.api_route('/search', dependencies=[Depends(RateLimiter(times=3, seconds=1))], methods=['POST'],
                         name='search')
 async def search(request: Request, background_tasks: BackgroundTasks):
@@ -205,3 +200,26 @@ async def detail(request: Request):
     except:
         return JSONResponse({"error": "Upstream Error"}, status_code=501)
     # direct play https://player.viloud.tv/embed/play?url=https://www.olevod.com/vod/detail/5f4b3b7b7f3c1d0001b2b3b3&autoplay=1
+
+
+@searchRouter.api_route('/report/keyword', methods=['POST', 'PUT'], name='report_keyword',
+                        dependencies=[Depends(RateLimiter(times=1, seconds=3))])
+async def report_keyword(request: Request):
+    """
+    上报搜索关键词 针对搜索结果为空的情况
+    """
+    # purge cache for the keyword and search result
+    data = await request.json()
+    # print(data, "checkpoint 1")
+    data = await checkSum(data)
+    # print(data, "checkpoint 2")
+    keyword = data.get('keyword')
+    if keyword == '' or keyword == 'your keyword':
+        return JSONResponse({}, status_code=200)
+    try:
+        key = f"keyword_{datetime.datetime.now().strftime('%Y-%m-%d')}_{keyword}"
+        await redis_delete_key(key)
+    except Exception as e:
+        logging.error("Error: " + str(e), stack_info=True)
+        return JSONResponse({"error": 'trace stack b1'}, status_code=501)
+    return RedirectResponse(url='/api/query/ole/keyword', status_code=308)
