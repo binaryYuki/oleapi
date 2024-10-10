@@ -73,5 +73,9 @@ USER appuser
 # Expose the port that the application listens on.
 EXPOSE 8000
 
-# Run the application using the virtual environment
-CMD ["/bin/sh", "-c", ". .venv/bin/activate && python3 app.py"]
+# install gunicorn
+RUN . .venv/bin/activate && pip install gunicorn
+
+# Run the application
+# gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+CMD [".venv/bin/gunicorn", "app:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
