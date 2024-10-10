@@ -48,6 +48,14 @@ async def get_keys_by_pattern(pattern: str) -> list:
             maxAttempts -= 1
             return data
         else:
+            print(f"Error connecting to Redis: {e}")
+            return []
+    except Exception as e:
+        if maxAttempts > 0:
+            data = await get_keys_by_pattern(pattern)
+            maxAttempts -= 1
+            return data
+        else:
             print(f"Error getting keys by pattern from Redis: {e}")
             return []
 

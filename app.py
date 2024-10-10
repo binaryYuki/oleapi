@@ -1,4 +1,3 @@
-import binascii
 import logging
 import os
 import random
@@ -7,13 +6,14 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+import binascii
 import httpx
 import redis.asyncio as redis
+from asgi_correlation_id import CorrelationIdMiddleware
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi_limiter import FastAPILimiter
 from fastapi_utils.tasks import repeat_every
@@ -47,6 +47,17 @@ async def registerInstance():
     except Exception as e:
         logger.error(f"Failed to register instance: {e}", exc_info=True)
         exit(-1)
+    return True
+
+
+def is_valid_uuid4(uuid_string: str) -> bool:
+    """
+    检查是否是有效的 UUID4
+    """
+    try:
+        uuid.UUID(uuid_string, version=4)
+    except ValueError:
+        return False
     return True
 
 
@@ -133,6 +144,16 @@ async def instance_id_header_middleware(request, call_next):
     return response
 
 
+@app.get('/test')
+async def test():
+    """
+    测试接口
+    :return:
+    """
+    f = await get_keys_by_pattern("node:*")
+    return f
+
+
 @app.get('/')
 async def index():
     """
@@ -149,12 +170,19 @@ async def index():
         "instance_id": instanceID,
     }
 
-    html = f"""
+    # 转为 pre defined html
+    html = """
     <pre>
-    {info}
+    <code>
+    Version: {version}
+    Build At: {build_at}
+    Author: {author}
+    Arch: {arch}
+    Commit: {commit}
+    Instance ID: {instance_id}
+    </code>
     </pre>
-    """
-
+    """.format(**info)
     return HTMLResponse(content=html)
 
 
@@ -220,8 +248,6 @@ if not secret_key:
 app.add_middleware(SessionMiddleware, secret_key=secret_key,
                    session_cookie='session', max_age=60 * 60 * 12, same_site='lax', https_only=True)
 # noinspection PyTypeChecker
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=['*'])
-# noinspection PyTypeChecker
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 if os.getenv("DEBUG", "false").lower() == "false":
     # noinspection PyTypeChecker
@@ -233,13 +259,21 @@ if os.getenv("DEBUG", "false").lower() == "false":
         allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
                        'Referer', 'Cookie', 'User-Agent'],
     )
+    app.add_middleware(
+        CorrelationIdMiddleware,
+        header_name='X-Request-ID',
+        update_request_header=True,
+        generator=lambda: uuid.uuid4().hex,
+        validator=is_valid_uuid4,
+        transformer=lambda a: a,
+    )
 else:
     # noinspection PyTypeChecker
     app.add_middleware(
         CORSMiddleware,
         allow_origins=['*'],
         allow_credentials=True,
-        allow_methods=['GET', 'POST', 'OPTIONS'],  # options 请求是预检请求，需要单独处理
+        allow_methods=['GET', 'POST', 'OPTIONS', 'PUT'],  # options 请求是预检请求，需要单独处理
         allow_headers=['Authorization', 'Content-Type', 'Accept', 'Accept-Encoding', 'Accept-Language', 'Origin',
                        'Referer', 'Cookie', 'User-Agent'],
     )
@@ -247,4 +281,4 @@ else:
 if __name__ == '__main__':
     import uvicorn
 
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
